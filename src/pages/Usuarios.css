@@ -1,0 +1,1060 @@
+/* =========================================================
+   COMPLIANCE ONE
+   USUARIOS.CSS
+   V24.1 — USUÁRIOS, PERFIS E PERMISSÕES
+   ========================================================= */
+
+
+/* =========================================================
+   PÁGINA
+   ========================================================= */
+
+.usuarios-page {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  color: #17213c;
+}
+
+
+/* =========================================================
+   CABEÇALHO
+   ========================================================= */
+
+.usuarios-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.usuarios-eyebrow {
+  margin: 0 0 7px;
+  color: #6e7890;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+}
+
+.usuarios-header h1 {
+  margin: 0;
+  color: #111a31;
+  font-size: 30px;
+  line-height: 1.2;
+}
+
+.usuarios-subtitle {
+  margin: 9px 0 0;
+  color: #65718a;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   BOTÃO PRINCIPAL
+   ========================================================= */
+
+.usuarios-primary-button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 17px;
+  border: 1px solid #315bd4;
+  border-radius: 9px;
+  background: #345fdc;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(52, 95, 220, 0.18);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.usuarios-primary-button:hover {
+  background: #2d53c7;
+  border-color: #2d53c7;
+  box-shadow: 0 6px 16px rgba(52, 95, 220, 0.22);
+}
+
+.usuarios-primary-button:active {
+  transform: translateY(1px);
+}
+
+.usuarios-primary-button span {
+  font-size: 18px;
+  line-height: 1;
+}
+
+
+/* =========================================================
+   TOOLBAR
+   ========================================================= */
+
+.usuarios-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.usuarios-search {
+  width: min(520px, 100%);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid #dce2ed;
+  border-radius: 10px;
+  background: #ffffff;
+  box-sizing: border-box;
+  box-shadow: 0 2px 8px rgba(21, 32, 55, 0.025);
+}
+
+.usuarios-search > span {
+  color: #7a8599;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.usuarios-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #17213c;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.usuarios-search input::placeholder {
+  color: #9aa3b5;
+}
+
+.usuarios-counter {
+  flex-shrink: 0;
+  color: #6e7890;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+
+/* =========================================================
+   PAINEL PRINCIPAL
+   ========================================================= */
+
+.usuarios-panel {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid #e0e5ee;
+  border-radius: 15px;
+  background: #ffffff;
+  box-shadow: 0 5px 18px rgba(21, 32, 55, 0.035);
+}
+
+.usuarios-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 26px;
+  border-bottom: 1px solid #edf0f5;
+}
+
+.usuarios-panel-header h2 {
+  margin: 0;
+  color: #17213c;
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.usuarios-panel-header p {
+  margin: 6px 0 0;
+  color: #7a8498;
+  font-size: 12px;
+}
+
+
+/* =========================================================
+   TABELA
+   ========================================================= */
+
+.usuarios-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.usuarios-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.usuarios-table thead th {
+  height: 48px;
+  padding: 0 22px;
+  border-bottom: 1px solid #e8ebf1;
+  background: #fafbfc;
+  color: #6e7890;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.usuarios-table tbody td {
+  padding: 16px 22px;
+  border-bottom: 1px solid #edf0f5;
+  color: #344054;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.usuarios-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.usuarios-table tbody tr {
+  transition: background 0.18s ease;
+}
+
+.usuarios-table tbody tr:hover {
+  background: #fafcff;
+}
+
+
+/* =========================================================
+   IDENTIFICAÇÃO DO USUÁRIO
+   ========================================================= */
+
+.usuario-identificacao {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 230px;
+}
+
+.usuario-avatar {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #eaf0ff;
+  color: #315bd4;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.usuario-identificacao strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #202b44;
+  font-size: 13px;
+}
+
+.usuario-identificacao span {
+  display: block;
+  color: #7b8599;
+  font-size: 11px;
+}
+
+
+/* =========================================================
+   PERFIL
+   ========================================================= */
+
+.usuario-perfil {
+  display: inline-flex;
+  align-items: center;
+  min-height: 27px;
+  padding: 0 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.perfil-administrador {
+  background: #ede9fe;
+  color: #6842c2;
+}
+
+.perfil-compliance {
+  background: #eaf1ff;
+  color: #315bd4;
+}
+
+.perfil-gestor {
+  background: #eaf7f0;
+  color: #25895c;
+}
+
+.perfil-funcionario {
+  background: #fff4e7;
+  color: #b86b17;
+}
+
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+.usuario-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.usuario-status .status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: #35a96f;
+}
+
+
+/* =========================================================
+   AÇÃO DA TABELA
+   ========================================================= */
+
+.usuario-action-button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #d7ddea;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344054;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.usuario-action-button:hover {
+  border-color: #b8c5e2;
+  background: #f5f7fc;
+  color: #315bd4;
+}
+
+
+/* =========================================================
+   ESTADO VAZIO
+   ========================================================= */
+
+.usuarios-empty {
+  padding: 50px 20px !important;
+  color: #7b8599 !important;
+  font-size: 13px !important;
+  text-align: center;
+}
+
+
+/* =========================================================
+   MODAL — BASE
+   ========================================================= */
+
+.usuario-modal-overlay {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  background: rgba(16, 29, 59, 0.58);
+  backdrop-filter: blur(3px);
+  box-sizing: border-box;
+}
+
+.usuario-modal {
+  width: min(720px, 100%);
+  max-height: calc(100vh - 60px);
+  overflow-y: auto;
+  border: 1px solid #e0e5ee;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(16, 29, 59, 0.22);
+  animation: usuarioModalEntrada 0.18s ease-out;
+}
+
+.usuario-modal-permissoes {
+  width: min(1080px, 100%);
+}
+
+@keyframes usuarioModalEntrada {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
+/* =========================================================
+   CABEÇALHO DO MODAL
+   ========================================================= */
+
+.usuario-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 26px;
+  border-bottom: 1px solid #edf0f5;
+}
+
+.usuario-modal-header p {
+  margin: 0 0 6px;
+  color: #6e7890;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+
+.usuario-modal-header h2 {
+  margin: 0;
+  color: #17213c;
+  font-size: 21px;
+  line-height: 1.25;
+}
+
+.usuario-modal-close {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dce2ed;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #667085;
+  font-family: inherit;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.usuario-modal-close:hover {
+  border-color: #c9d1df;
+  background: #f5f7fa;
+  color: #17213c;
+}
+
+
+/* =========================================================
+   FORMULÁRIO
+   ========================================================= */
+
+.usuario-modal form {
+  padding: 24px 26px 0;
+}
+
+.usuario-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.usuario-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.usuario-form-group label {
+  color: #344054;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.usuario-form-group input,
+.usuario-form-group select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid #d7ddea;
+  border-radius: 8px;
+  outline: 0;
+  background: #ffffff;
+  color: #17213c;
+  font-family: inherit;
+  font-size: 13px;
+  box-sizing: border-box;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.usuario-form-group input::placeholder {
+  color: #a0a8b8;
+}
+
+.usuario-form-group input:focus,
+.usuario-form-group select:focus {
+  border-color: #6f8de8;
+  box-shadow: 0 0 0 3px rgba(52, 95, 220, 0.1);
+}
+
+
+/* =========================================================
+   AÇÕES DO MODAL
+   ========================================================= */
+
+.usuario-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 26px 24px;
+  margin-top: 24px;
+  border-top: 1px solid #edf0f5;
+}
+
+.usuario-secondary-button {
+  min-height: 40px;
+  padding: 0 15px;
+  border: 1px solid #d7ddea;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344054;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.usuario-secondary-button:hover {
+  background: #f7f8fa;
+}
+
+
+/* =========================================================
+   USUÁRIO NO GERENCIAMENTO
+   ========================================================= */
+
+.usuario-management-user {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 22px 26px 0;
+  padding: 15px;
+  border: 1px solid #e5e9f0;
+  border-radius: 11px;
+  background: #fafbfc;
+}
+
+.usuario-avatar-large {
+  width: 46px;
+  height: 46px;
+  flex-basis: 46px;
+  font-size: 15px;
+}
+
+.usuario-management-user strong {
+  display: block;
+  margin-bottom: 3px;
+  color: #202b44;
+  font-size: 14px;
+}
+
+.usuario-management-user span {
+  display: block;
+  margin-bottom: 4px;
+  color: #667085;
+  font-size: 12px;
+}
+
+.usuario-management-user small {
+  color: #7b8599;
+  font-size: 11px;
+}
+
+
+/* =========================================================
+   ABAS
+   ========================================================= */
+
+.usuario-management-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 22px 26px 0;
+  border-bottom: 1px solid #e5e9f0;
+}
+
+.usuario-management-tabs button {
+  position: relative;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: #7a8498;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.usuario-management-tabs button::after {
+  content: "";
+  position: absolute;
+  right: 10px;
+  bottom: -1px;
+  left: 10px;
+  height: 2px;
+  border-radius: 2px;
+  background: transparent;
+}
+
+.usuario-management-tabs button:hover {
+  color: #315bd4;
+}
+
+.usuario-management-tabs button.active {
+  color: #315bd4;
+}
+
+.usuario-management-tabs button.active::after {
+  background: #345fdc;
+}
+
+
+/* =========================================================
+   PERMISSÕES
+   ========================================================= */
+
+.usuario-permissoes-content {
+  padding: 22px 26px 0;
+}
+
+.usuario-permissoes-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.usuario-permissoes-heading h3 {
+  margin: 0 0 5px;
+  color: #17213c;
+  font-size: 15px;
+}
+
+.usuario-permissoes-heading p {
+  margin: 0;
+  color: #7a8498;
+  font-size: 11px;
+}
+
+.usuario-reset-button {
+  min-height: 34px;
+  flex-shrink: 0;
+  padding: 0 11px;
+  border: 1px solid #d7ddea;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #526078;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.usuario-reset-button:hover {
+  border-color: #bdc9e2;
+  background: #f5f7fc;
+  color: #315bd4;
+}
+
+
+/* =========================================================
+   LISTA DE PERMISSÕES
+   ========================================================= */
+
+.usuario-permissoes-lista {
+  overflow: hidden;
+  border: 1px solid #e3e7ee;
+  border-radius: 11px;
+}
+
+.usuario-permissao-item {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(390px, auto);
+  align-items: center;
+  gap: 24px;
+  min-height: 74px;
+  padding: 13px 16px;
+  border-bottom: 1px solid #edf0f5;
+  background: #ffffff;
+}
+
+.usuario-permissao-item:last-child {
+  border-bottom: 0;
+}
+
+.usuario-permissao-item:hover {
+  background: #fbfcfe;
+}
+
+.usuario-permissao-item.modulo-restrito {
+  background: #fcfbff;
+}
+
+.usuario-permissao-item.modulo-restrito:hover {
+  background: #faf8ff;
+}
+
+
+/* =========================================================
+   INFORMAÇÃO DO MÓDULO
+   ========================================================= */
+
+.usuario-permissao-info {
+  min-width: 0;
+}
+
+.usuario-permissao-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.usuario-permissao-title strong {
+  color: #202b44;
+  font-size: 12px;
+}
+
+.usuario-permissao-info > span {
+  display: block;
+  color: #7a8498;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.usuario-restrito-badge {
+  display: inline-flex !important;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 7px;
+  border-radius: 12px;
+  background: #f0ebff;
+  color: #7047c9 !important;
+  font-size: 9px !important;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+
+/* =========================================================
+   AÇÕES DE PERMISSÃO
+   ========================================================= */
+
+.usuario-permissoes-acoes {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.usuario-checkbox {
+  min-width: 70px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 9px;
+  border: 1px solid #e0e5ee;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #667085;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.usuario-checkbox:hover {
+  border-color: #bfcbe5;
+  background: #f8faff;
+  color: #315bd4;
+}
+
+.usuario-checkbox input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #345fdc;
+  cursor: pointer;
+}
+
+.usuario-checkbox:has(input:checked) {
+  border-color: #aebde3;
+  background: #eef3ff;
+  color: #315bd4;
+}
+
+
+/* =========================================================
+   PERFIL DE ACESSO
+   ========================================================= */
+
+.usuario-perfil-content {
+  padding: 24px 26px 0;
+}
+
+.usuario-perfil-box {
+  padding: 18px;
+  margin-bottom: 22px;
+  border: 1px solid #dfe5f0;
+  border-radius: 11px;
+  background: linear-gradient(
+    135deg,
+    #f7f9ff 0%,
+    #ffffff 100%
+  );
+}
+
+.usuario-perfil-box > span {
+  display: block;
+  margin-bottom: 7px;
+  color: #6e7890;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.usuario-perfil-box strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #17213c;
+  font-size: 17px;
+}
+
+.usuario-perfil-box p {
+  margin: 0;
+  color: #7a8498;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.usuario-perfil-content .usuario-form-group {
+  max-width: 460px;
+}
+
+.usuario-perfil-informacao {
+  max-width: 700px;
+  margin-top: 22px;
+  padding: 15px;
+  border-left: 3px solid #5575d9;
+  border-radius: 0 8px 8px 0;
+  background: #f5f7fc;
+}
+
+.usuario-perfil-informacao strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #344054;
+  font-size: 12px;
+}
+
+.usuario-perfil-informacao p {
+  margin: 0;
+  color: #667085;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+
+/* =========================================================
+   SCROLLBAR DO MODAL
+   ========================================================= */
+
+.usuario-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.usuario-modal::-webkit-scrollbar-track {
+  background: #f5f7fa;
+}
+
+.usuario-modal::-webkit-scrollbar-thumb {
+  border-radius: 10px;
+  background: #cbd2df;
+}
+
+.usuario-modal::-webkit-scrollbar-thumb:hover {
+  background: #b7c0d0;
+}
+
+
+/* =========================================================
+   RESPONSIVIDADE
+   ========================================================= */
+
+@media (max-width: 1100px) {
+
+  .usuario-permissao-item {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .usuario-permissoes-acoes {
+    justify-content: flex-start;
+  }
+
+}
+
+
+@media (max-width: 800px) {
+
+  .usuarios-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .usuarios-primary-button {
+    align-self: flex-start;
+  }
+
+  .usuarios-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .usuarios-search {
+    width: 100%;
+  }
+
+  .usuarios-counter {
+    align-self: flex-start;
+  }
+
+  .usuario-modal-overlay {
+    align-items: flex-start;
+    padding: 15px;
+    overflow-y: auto;
+  }
+
+  .usuario-modal {
+    max-height: none;
+  }
+
+  .usuario-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .usuario-management-user {
+    margin-left: 18px;
+    margin-right: 18px;
+  }
+
+  .usuario-management-tabs {
+    margin-left: 18px;
+    margin-right: 18px;
+  }
+
+  .usuario-permissoes-content,
+  .usuario-perfil-content {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .usuario-permissoes-heading {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .usuario-reset-button {
+    align-self: flex-start;
+  }
+
+  .usuario-modal-actions {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+}
+
+
+/* =========================================================
+   ACESSIBILIDADE / FOCO
+   ========================================================= */
+
+.usuario-action-button:focus-visible,
+.usuario-modal-close:focus-visible,
+.usuario-primary-button:focus-visible,
+.usuario-secondary-button:focus-visible,
+.usuario-reset-button:focus-visible,
+.usuario-management-tabs button:focus-visible,
+.usuario-checkbox:focus-within {
+  outline: 3px solid rgba(52, 95, 220, 0.18);
+  outline-offset: 2px;
+}
+
+
+/* =========================================================
+   IMPRESSÃO
+   ========================================================= */
+
+@media print {
+
+  .usuario-modal-overlay {
+    display: none !important;
+  }
+
+  .usuarios-page {
+    width: 100% !important;
+    background: #ffffff !important;
+  }
+
+  .usuarios-header,
+  .usuarios-toolbar {
+    display: none !important;
+  }
+
+  .usuarios-panel {
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+}

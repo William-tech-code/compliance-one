@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+
+# Production / build
+dist/
+dist-ssr/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Local databases
+*.sqlite
+*.sqlite3
+*.db
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Local / temporary files
+*.local
+*.tmp
+*.temp
+
+# Backups
+*.BACKUP
+*.BACKUP-RELEASE
+*.bak
+*.backup
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+Thumbs.db
+
+# Project backups / historical copies
+*.BACKUP-RELEASE
+*.V122_BEFORE_V124
+*.V124.STABLE
+*.V125.BEFORE-INTEGRATION
+*.BASE-ESTAVEL-EMPRESA
+*.DEMO
+src/App.jsx.BACKUP-FINAL
