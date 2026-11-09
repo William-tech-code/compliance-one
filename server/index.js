@@ -5,14 +5,23 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import Database from "better-sqlite3";
 import crypto from "node:crypto";
+import path from "node:path";
+import fs from "node:fs";
 
 const app = express();
 
 const PORT = Number(process.env.PORT || 8787);
-const JWT_SECRET =
-  process.env.JWT_SECRET || "NEXUS_DEV_SECRET_CHANGE_BEFORE_PRODUCTION";
-
-const db = new Database("nexus.sqlite");
+const production = process.env.NODE_ENV === "production";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET.length < 32) {
+  throw new Error("JWT_SECRET must be configured with at least 32 characters");
+}
+const dbPath = process.env.DATABASE_PATH || "nexus.sqlite";
+if (production && !path.isAbsolute(dbPath)) {
+  throw new Error("DATABASE_PATH must be an absolute persistent path in production");
+}
+fs.mkdirSync(path.dirname(path.resolve(dbPath)), { recursive: true });
+const db = new Database(dbPath);
 
 db.pragma("journal_mode = WAL");
 
@@ -62,8 +71,8 @@ app.use(helmet());
 
 app.use(
   cors({
-    origin: true,
-    credentials: true,
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",").map(x => x.trim()) : false,
+    credentials: false,
   })
 );
 
@@ -214,6 +223,13 @@ app.get("/api/health", (req, res) => {
 */
 
 app.post("/api/bootstrap", async (req, res) => {
+  const bootstrapSecret = process.env.BOOTSTRAP_SECRET;
+  if (!bootstrapSecret || req.get("x-bootstrap-secret") !== bootstrapSecret) {
+    return res.status(403).json({ error: "BOOTSTRAP_DISABLED" });
+  }
+  if (db.prepare("SELECT COUNT(*) AS count FROM companies").get().count > 0) {
+    return res.status(409).json({ error: "ALREADY_INITIALIZED" });
+  }
   const {
     companyName,
     segment = "",
