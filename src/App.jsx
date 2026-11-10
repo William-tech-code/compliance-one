@@ -824,7 +824,7 @@ function AppCore() {
   },[s,apiUser]);
 
   const questions = useMemo(()=>buildEnterpriseQuestions(s.company.segment),[s.company.segment]);
-  const answered = questions.filter(q=>s.answers[q.id]).length;
+  const answered = questions.filter(q=>Object.prototype.hasOwnProperty.call(s.answers,q.id)).length;
   const done = s.workflow;
   const progress = Math.round(Object.values(done).filter(Boolean).length / Object.keys(done).length * 100);
 
@@ -952,11 +952,11 @@ function AppCore() {
       const a=answerMap[q.id];
       if(a!=="Não" && a!=="Parcialmente") return;
       const lib=RISK_LIBRARY[q.key] || RISK_LIBRARY.controls;
-      const uniqueKey=q.area+"|"+q.key+"|"+a;
+      const uniqueKey=q.id;
       if(seen.has(uniqueKey)) return;
       seen.add(uniqueKey);
       const p=a==="Não"?4:3, i=lib.legal?4:3, level=RISK_LEVEL(p,i);
-      const risk={id:uid("RISCO"),title:lib.title,category:lib.category,sourceQuestion:q.id,sourceText:q.text,answer:a,p,i,score:p*i,level,status:"Pendente de confirmação",cause:lib.cause,consequence:lib.consequence,control:"Controle a validar no diagnóstico.",recommendation:lib.recommendation,responsible:lib.owner,created:now(),automatic:true};
+      const risk={id:uid("RISCO"),title:`${lib.title} — ${q.area}`,category:q.area,sourceQuestion:q.id,sourceText:q.text,answer:a,p,i,score:p*i,level,status:"Pendente de confirmação",cause:lib.cause,consequence:lib.consequence,control:"Controle a validar no diagnóstico.",recommendation:lib.recommendation,responsible:lib.owner,created:now(),automatic:true};
       generatedRisks.push(risk);
       generatedActions.push({id:uid("ACAO"),riskId:risk.id,title:lib.action,description:lib.recommendation,responsible:lib.owner,priority:level,deadline:"",status:"Pendente de confirmação",evidenceRequired:"Evidência documental da implementação e eficácia.",automatic:true,created:now()});
       if(lib.legal) generatedLegal.push({id:uid("JUR"),riskId:risk.id,title:`Avaliação jurídica — ${lib.title}`,reason:`Achado ${level.toLowerCase()} relacionado a ${lib.category}. Potencial impacto legal, regulatório, contratual ou de responsabilidade.`,status:"Aguardando confirmação",responsible:"Jurídico",automatic:true,created:now()});
@@ -1439,7 +1439,7 @@ function Diagnosis({s,maturity,finish}){return <div className="page"><div classN
 function Questionnaire({s,questions,answered,answer,finish}){
   const firstUnanswered=(()=>{const n=questions.findIndex(q=>!Object.prototype.hasOwnProperty.call(s.answers,q.id));return n<0?Math.max(0,questions.length-1):n})();
   const [index,setIndex]=useState(firstUnanswered);
-  useEffect(()=>setIndex(firstUnanswered),[s.company.name,s.company.segment,s.company.size,s.globalProfile?.jurisdictions?.join("|"),firstUnanswered]);
+  useEffect(()=>setIndex(firstUnanswered),[s.company.segment]);
 
   const areas=useMemo(()=>[...new Set(questions.map(item=>item.area))],[questions]);
   const q=questions[Math.min(index,questions.length-1)];
