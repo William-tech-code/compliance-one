@@ -1,5 +1,21 @@
 const API_URL = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
 
+const REQUEST_TIMEOUT_MS = 15000;
+
+async function request(url, options = {}) {
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (error?.name === "TimeoutError" || error?.name === "AbortError") {
+      throw new Error("A conexão demorou demais. Verifique sua internet e tente novamente.");
+    }
+    throw new Error("Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.");
+  }
+}
+
 async function parseResponse(response) {
   const contentType = response.headers.get("content-type") || "";
 
@@ -23,13 +39,13 @@ async function parseResponse(response) {
 }
 
 export async function apiHealth() {
-  const response = await fetch(`${API_URL}/health`);
+  const response = await request(`${API_URL}/health`);
 
   return parseResponse(response);
 }
 
 export async function bootstrapCompany(data) {
-  const response = await fetch(`${API_URL}/bootstrap`, {
+  const response = await request(`${API_URL}/bootstrap`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -55,7 +71,7 @@ export async function login(dataOrEmail, password) {
           password,
         };
 
-  const response = await fetch(`${API_URL}/login`, {
+  const response = await request(`${API_URL}/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -78,7 +94,7 @@ export async function login(dataOrEmail, password) {
 export async function apiGet(path) {
   const token = localStorage.getItem("nexus_api_token");
 
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await request(`${API_URL}${path}`, {
     method: "GET",
     headers: {
       ...(token
@@ -95,7 +111,7 @@ export async function apiGet(path) {
 export async function apiPost(path, data) {
   const token = localStorage.getItem("nexus_api_token");
 
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await request(`${API_URL}${path}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -114,7 +130,7 @@ export async function apiPost(path, data) {
 export async function apiPut(path, data) {
   const token = localStorage.getItem("nexus_api_token");
 
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await request(`${API_URL}${path}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
