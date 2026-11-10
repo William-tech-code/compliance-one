@@ -57,6 +57,17 @@ test("two sessions cannot overwrite a newer workspace version", {timeout:30000},
   assert.equal(newest.data.payload.answers.A,"Sim");
   const rejectedHistory=await call("/records/"+id+"/versions/3","GET",undefined,token);
   assert.equal(rejectedHistory.status,404);
+  // Restoring an old snapshot must append version 3, never rewrite history.
+  const restored=await call("/records/"+id,"PUT",old.data.payload,token,2);
+  assert.equal(restored.status,200);
+  assert.equal(restored.data.version,3);
+  const afterRestore=await call("/records/workspace","GET",undefined,token);
+  assert.equal(afterRestore.data.records[0].payload.answers.A,"Não");
+  assert.equal(afterRestore.data.records[0].version,3);
+  const preserved=await call("/records/"+id+"/versions/2","GET",undefined,token);
+  assert.equal(preserved.data.payload.answers.A,"Sim");
+  const latestHistory=await call("/records/"+id+"/versions","GET",undefined,token);
+  assert.deepEqual(latestHistory.data.versions.map(v=>v.version),[3,2,1]);
  }finally{
   child.kill("SIGTERM");
   rmSync(dir,{recursive:true,force:true});
