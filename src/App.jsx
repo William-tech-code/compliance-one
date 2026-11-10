@@ -1,3 +1,4 @@
+import { recordDiagnosticAnswer, validateDiagnosticLinks, diagnosticProgress } from "./diagnosticGovernance";
 import { assessDiagnostic } from "./diagnosticEngine";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { buildEnterpriseQuestions } from "./enterpriseQuestionBank";
@@ -828,7 +829,7 @@ function AppCore() {
   },[s,apiUser]);
 
   const questions = useMemo(()=>buildEnterpriseQuestions(s.company.segment),[s.company.segment]);
-  const answered = questions.filter(q=>Object.prototype.hasOwnProperty.call(s.answers,q.id)).length;
+  const answered = diagnosticProgress(questions,s.answers).answered;
   const done = s.workflow;
   const progress = Math.round(Object.values(done).filter(Boolean).length / Object.keys(done).length * 100);
 
@@ -972,6 +973,8 @@ function AppCore() {
     if(page==="questionario"){
       if(answered<questions.length) return notify("Responda todas as perguntas antes de gerar o diagnóstico automático.");
       const generated=generateFromAnswers(s.answers);
+      const integrity=validateDiagnosticLinks(generated,questions);
+      if(!integrity.valid) return notify("Diagnóstico inconsistente: revise os vínculos antes de concluir.");
       const ns={...s,risks:generated.risks,actions:generated.actions,legal:generated.legal,review:{status:"Aguardando confirmação",confirmedRisks:false,confirmedActions:false,confirmedLegal:false},workflow:{...s.workflow,questionario:true},history:[...s.history,{id:uid("LOG"),text:`Diagnóstico consolidado instantaneamente: ${generated.risks.length} riscos, ${generated.actions.length} ações e ${generated.legal.length} triagens jurídicas.`,date:now()}]};
       setS(ns); notify(`Diagnóstico concluído: ${generated.risks.length} riscos, ${generated.actions.length} ações e ${generated.legal.length} triagens. Matriz atualizada.`);
       run("Atualizando matriz, plano e triagem",()=>setPage("riscos"));
@@ -1036,7 +1039,9 @@ function AppCore() {
   }
 
   function answer(id,v) {
-    setS(prev=>({...prev,answers:{...prev.answers,[id]:v}}));
+    const question=questions.find(q=>q.id===id);
+    if(!question) return notify("Pergunta não encontrada no ramo atual.");
+    setS(prev=>recordDiagnosticAnswer(prev,question,v,apiUser?.name||apiUser?.email||"Usuário local"));
   }
 
   function confirmRisks() {
