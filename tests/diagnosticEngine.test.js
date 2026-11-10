@@ -26,7 +26,7 @@ test("800 negative answers create 800 linked actions with unique IDs",()=>{
 });
 test("unanswered and N/A are not considered failures",()=>{
  const q=buildEnterpriseQuestions("Gestão Pública");
- const answers={[q[0].id:"Não",[q[1].id]:"Parcialmente",[q[2].id]:"N/A"};
+ const answers={[q[0].id]:"Não",[q[1].id]:"Parcialmente",[q[2].id]:"N/A"};
  const out=assessDiagnostic(q,answers,library,riskLevel);
  assert.equal(out.risks.length,2);assert.equal(out.actions.length,2);
 });
