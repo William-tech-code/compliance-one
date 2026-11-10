@@ -1,4 +1,4 @@
-import { recordDiagnosticAnswer, validateDiagnosticLinks, diagnosticProgress } from "./diagnosticGovernance";
+import { recordDiagnosticAnswer, validateDiagnosticLinks, diagnosticProgress, executiveDiagnosticSummary } from "./diagnosticGovernance";
 import { assessDiagnostic } from "./diagnosticEngine";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { buildEnterpriseQuestions } from "./enterpriseQuestionBank";
@@ -1559,11 +1559,13 @@ function AutoLegal({s,confirm,finish}){return <div className="page"><div classNa
 function Report({s,maturity,progress,print,setS,framework={selected:[]}}){
   const ready=s.workflow.juridico&&s.review.confirmedLegal;
   const risks=s.risks||[], actions=s.actions||[], legal=s.legal||[], docs=s.documents||[], evidence=s.evidence||[];
+  const diagnostic=executiveDiagnosticSummary(buildEnterpriseQuestions(s.company.segment),s.answers||{},{risks,actions,legal});
+  const actionsByRisk=new Map(actions.map(a=>[a.riskId,a]));
   const sections=[
-    ["01","Resumo Executivo",`A empresa ${s.company.name||"organização"} apresenta maturidade estimada em ${maturity}%, com ${risks.length} riscos, ${actions.length} ações, ${legal.length} triagens jurídicas e ${evidence.length} evidências registradas.`],
+    ["01","Resumo Executivo",`A empresa ${s.company.name||"organização"} apresenta maturidade estimada em ${maturity}%, com ${diagnostic.answered}/${diagnostic.total} respostas válidas (${diagnostic.percent}% concluído), ${diagnostic.noncompliant} não conformidades, ${diagnostic.partial} controles parciais, ${risks.length} riscos, ${actions.length} ações, ${legal.length} triagens jurídicas e ${evidence.length} evidências registradas.`],
     ["02","Perfil e Escopo",`Segmento: ${s.company.segment||"—"} · Porte: ${s.company.size||"—"} · Modelo: ${s.company.mode||"—"} · Jurisdições: ${(s.globalProfile?.jurisdictions||["BR"]).join(", ")}.`],
     ["03","Matriz de Riscos",risks.length?risks.slice(0,12).map(r=>`${r.level} · ${r.title} · Score ${r.score} · Responsável ${r.responsible||"Compliance"}`).join(" | "):"Nenhum risco registrado."],
-    ["04","Causas e Soluções",risks.length?risks.slice(0,12).map((r,i)=>`${r.title}: causa — ${r.cause||"validar"}; solução — ${actions[i]?.title||r.recommendation||"definir"}.`).join(" "):"Sem achados."],
+    ["04","Causas e Soluções",risks.length?risks.slice(0,12).map((r,i)=>`${r.title}: causa — ${r.cause||"validar"}; solução — ${actionsByRisk.get(r.id)?.title||r.recommendation||"definir"}.`).join(" "):"Sem achados."],
     ["05","Plano de Ação",actions.length?actions.slice(0,12).map(a=>`${a.priority} · ${a.title} · ${a.responsible||"Não definido"} · ${a.status}`).join(" | "):"Nenhuma ação gerada."],
     ["06","Jurídico",legal.length?legal.map(j=>`${j.title} · ${j.status}`).join(" | "):"Nenhum encaminhamento jurídico identificado pelo motor."],
     ["07","Documentos",docs.length?docs.map(d=>d.name).join(" · "):"Biblioteca documental ainda não gerada."],
@@ -1572,6 +1574,7 @@ function Report({s,maturity,progress,print,setS,framework={selected:[]}}){
     ["10","Prevenção e Perdas","Priorizar riscos críticos, ações com evidência, terceiros de maior exposição, controles financeiros, continuidade, privacidade e obrigações regulatórias aplicáveis."],
     ["11","Governança","Responsabilidades, alçadas, decisões críticas, conflitos, reporte e supervisão devem permanecer rastreáveis."],
     ["12","Monitoramento","A matriz deve ser revisada quando respostas, riscos, ações, evidências ou perfil da empresa forem alterados."],
+    ["13","Auditoria e Integridade",`${(s.auditTrail||[]).length} alterações de respostas registradas. Vínculos entre riscos e ações: ${diagnostic.integrity.valid?"consistentes":"necessitam revisão"}. Respostas pendentes: ${diagnostic.pending}. Registros anteriores ignorados no progresso: ${diagnostic.ignoredLegacyAnswers}.`],
   ];
   return <div className="page">
     <div className={"final "+(ready?"ready":"")}><div><small>{ready?"PROCESSO PRONTO":"PROCESSO EM ANDAMENTO"}</small><h1>{ready?"Relatório Executivo Liberado":"Finalize as etapas anteriores"}</h1><p>{progress}% concluído.</p></div><button className="primary" disabled={!ready} onClick={print}>🖨 Gerar / Imprimir Relatório Premium</button></div>
