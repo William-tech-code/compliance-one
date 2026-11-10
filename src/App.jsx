@@ -1438,6 +1438,7 @@ function Diagnosis({s,maturity,finish}){return <div className="page"><div classN
 
 function Questionnaire({s,questions,answered,answer,finish}){
   const firstUnanswered=(()=>{const n=questions.findIndex(q=>!Object.prototype.hasOwnProperty.call(s.answers,q.id));return n<0?Math.max(0,questions.length-1):n})();
+  const answeredByArea=useMemo(()=>{const counts=new Map();for(const question of questions){if(Object.prototype.hasOwnProperty.call(s.answers,question.id))counts.set(question.area,(counts.get(question.area)||0)+1)}return counts},[questions,s.answers]);
   const [index,setIndex]=useState(firstUnanswered);
   useEffect(()=>setIndex(firstUnanswered),[s.company.segment]);
 
@@ -1473,7 +1474,7 @@ function Questionnaire({s,questions,answered,answer,finish}){
     <div className="q-area-toolbar" style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",margin:"20px 0",padding:"16px",background:"rgba(12,29,49,.9)",border:"1px solid #27445e",borderRadius:16}}>
       <label htmlFor="diagnostic-area" style={{fontWeight:700}}>Área de avaliação</label>
       <select id="diagnostic-area" value={q?.area||""} onChange={e=>{const next=questions.findIndex(item=>item.area===e.target.value);if(next>=0)setIndex(next)}} style={{minWidth:240,maxWidth:"100%",padding:12,borderRadius:10,background:"#10253c",color:"#fff",border:"1px solid #35526d"}}>
-        {areas.map(area=><option key={area} value={area}>{area} ({questions.filter(item=>item.area===area&&s.answers[item.id]).length}/25)</option>)}
+        {areas.map(area=><option key={area} value={area}>{area} ({answeredByArea.get(area)||0}/25)</option>)}
       </select>
       <span style={{color:"#9db5ce"}}>32 áreas · 25 verificações por área · 800 perguntas por ramo</span>
       <button className="secondary" onClick={()=>setIndex(firstUnanswered)}>Continuar de onde parei</button>
