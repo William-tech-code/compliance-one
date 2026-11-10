@@ -5,6 +5,7 @@ import {mkdtempSync,rmSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {setTimeout as delay} from "node:timers/promises";
+import {once} from "node:events";
 
 test("two sessions cannot overwrite a newer workspace version", {timeout:30000},async()=>{
  const dir=mkdtempSync(join(tmpdir(),"compliance-concurrency-"));
@@ -69,7 +70,13 @@ test("two sessions cannot overwrite a newer workspace version", {timeout:30000},
   const latestHistory=await call("/records/"+id+"/versions","GET",undefined,token);
   assert.deepEqual(latestHistory.data.versions.map(v=>v.version),[3,2,1]);
  }finally{
-  child.kill("SIGTERM");
-  rmSync(dir,{recursive:true,force:true});
+  // Windows keeps the SQLite files locked until the child has fully exited.
+  // Wait for process termination before removing the temporary database.
+  if(child.exitCode===null && child.signalCode===null){
+   const exited=once(child,"exit");
+   child.kill("SIGTERM");
+   await Promise.race([exited,delay(5000)]);
+  }
+  rmSync(dir,{recursive:true,force:true,maxRetries:15,retryDelay:200});
  }
 });
