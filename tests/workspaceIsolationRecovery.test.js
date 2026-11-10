@@ -59,6 +59,15 @@ test("tenant isolation and workspace persistence across server restart", {timeou
   assert.equal(restored.data.records[0].id,recordId);
   assert.equal(restored.data.records[0].version,1);
   assert.equal(restored.data.records[0].payload.answers.Q1,"Não");
+  // Existing tokens must honor current database role, not stale JWT claims.
+  const roleDb=new Database(dbPath);
+  roleDb.prepare("UPDATE users SET role='Colaborador' WHERE id=?").run(init.data.user.id);
+  roleDb.close();
+  const forbidden=await call("/records/"+recordId,"PUT",{answers:{Q1:"Sim"}},tokenA,1);
+  assert.equal(forbidden.status,403);
+  const restoreRoleDb=new Database(dbPath);
+  restoreRoleDb.prepare("UPDATE users SET role='Administrador' WHERE id=?").run(init.data.user.id);
+  restoreRoleDb.close();
   // Token remains signed but account revocation must take effect immediately.
   const revokeDb=new Database(dbPath);
   revokeDb.prepare("UPDATE users SET active=0 WHERE id=?").run(init.data.user.id);
