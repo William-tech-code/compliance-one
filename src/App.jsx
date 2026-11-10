@@ -1,3 +1,4 @@
+import {generateComplianceBriefing} from "./complianceBriefing";
 import {regulatoryIntelligenceSummary,createRegulatoryReview} from "./regulatoryIntelligence";
 import { recordDiagnosticAnswer, validateDiagnosticLinks, diagnosticProgress, executiveDiagnosticSummary } from "./diagnosticGovernance";
 import { assessDiagnostic } from "./diagnosticEngine";
@@ -1736,6 +1737,11 @@ function RegulatoryReviewPanel({s,setS,notify,questions,reviewer}){
  return <section style={{padding:20,margin:"16px 0",border:"1px solid #526b81",borderRadius:12}}>
   <h2>Inteligência regulatória · fontes oficiais</h2>
   <p>Catálogo de referência {summary.catalogVersion}. Não há consulta automática a diários oficiais nesta versão. Vigência, alterações, aplicabilidade e obrigações devem ser confirmadas por responsável jurídico.</p>
+  <details><summary>Assistente de prioridades · análise explicável</summary>
+    <p>{briefing.engine}. Não realiza consultas automáticas à legislação nem substitui análise jurídica.</p>
+    <p>{briefing.overview.noncompliant} respostas que exigem atenção · {briefing.overview.risks} riscos · {briefing.overview.actions} ações</p>
+    {briefing.priorities.map(r=><p key={r.riskId}><strong>{r.title}</strong> · {r.level} · {r.nextStep} · Origem: {r.questionId||"Framework"}</p>)}
+  </details>
   <p>{summary.entries.length} referências potencialmente relevantes · {summary.reviewed} revisadas · {summary.pending} pendentes</p>
   <div style={{display:"grid",gap:8}}>{summary.entries.map(r=><div key={r.id} style={{padding:10,border:"1px solid #526b81",borderRadius:8}}>
    <strong>{r.reference} — {r.name}</strong>
