@@ -1437,7 +1437,7 @@ function CompanyPage({s,open}){return <div className="page"><Panel title="Cadast
 function Diagnosis({s,maturity,finish}){return <div className="page"><div className="hero compact"><div><small>NEXUS DIAGNOSTIC ENGINE</small><h1>Diagnóstico de maturidade</h1><p>{s.company.segment} · {s.company.size}</p></div><div className="orb"><b>{maturity}%</b><small>estimativa inicial</small></div></div><Panel title="O que será automatizado" sub="Você não precisará montar manualmente a matriz ou o plano de ação."><div className="auto-grid">{["Questionário setorial","Matriz automática","Causas prováveis","Recomendações","Plano de ação","Triagem jurídica","Relatório executivo"].map(x=><div key={x}><b>✓</b><span>{x}</span></div>)}</div></Panel><Advance title="Etapa 1 · Diagnóstico" text="Perfil carregado. Avance para responder o questionário inteligente." onClick={finish}/></div>}
 
 function Questionnaire({s,questions,answered,answer,finish}){
-  const firstUnanswered=(()=>{const n=questions.findIndex(q=>!s.answers[q.id]);return n<0?Math.max(0,questions.length-1):n})();
+  const firstUnanswered=(()=>{const n=questions.findIndex(q=>!Object.prototype.hasOwnProperty.call(s.answers,q.id));return n<0?Math.max(0,questions.length-1):n})();
   const [index,setIndex]=useState(firstUnanswered);
   useEffect(()=>setIndex(firstUnanswered),[s.company.name,s.company.segment,s.company.size,s.globalProfile?.jurisdictions?.join("|"),firstUnanswered]);
 
