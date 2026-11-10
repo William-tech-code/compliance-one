@@ -14,9 +14,11 @@ export function validateCorrectiveActionMutation(previous,next,actor){
   if(!Array.isArray(action.evidences)||!Array.isArray(action.events))throw Error("INVALID_AUDIT_TRAIL");
   const prior=old.get(action.id);
   if(!prior){
+   if(action.evidenceRequired!==true||action.evidences.length!==0||action.verifiedBy)throw Error("INVALID_ACTION_CREATION");
    if(action.status!=="ABERTA"||action.events.length!==1||action.events[0]?.type!=="CRIADA"||action.events[0]?.actor!==actor)throw Error("INVALID_ACTION_CREATION");
    continue;
   }
+  if(action.owner!==prior.owner||action.riskId!==prior.riskId||action.evidenceRequired!==prior.evidenceRequired)throw Error("ACTION_FIELDS_IMMUTABLE");
   if(prior.status==="CONCLUÍDA"||prior.status==="CANCELADA"){
    if(JSON.stringify(prior)!==JSON.stringify(action))throw Error("FINAL_ACTION_IMMUTABLE");
    continue;
