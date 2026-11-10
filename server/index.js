@@ -3,6 +3,7 @@ import {validateGovernanceMutation} from "./governanceGuard.js";
 import {validateCorrectiveActionMutation} from "./correctiveActionGuard.js";
 import {MONITOR_SOURCES,probeRegulation,compareRegulationSnapshot} from "./regulatoryMonitor.js";
 import {validateAiRequest,buildAiMessages} from "./aiSafety.js";
+import {configureWhistleblower} from "./whistleblower.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -182,6 +183,7 @@ const permissions = {
   Colaborador: [
     "record:read",
   ],
+  "Equipe de Apuração": [],
 };
 
 function requirePermission(permission) {
@@ -227,6 +229,8 @@ function audit(req, action, entity = "", entityId = "", metadata = {}) {
     now()
   );
 }
+
+configureWhistleblower({app,db,authenticate,audit});
 
 /*
 |--------------------------------------------------------------------------
@@ -665,6 +669,12 @@ app.post(
       return res.status(400).json({
         error: "MISSING_FIELDS",
       });
+    }
+    if((role==="Equipe de Apuração"||role==="Administrador") && req.user.role!=="Administrador"){
+      return res.status(403).json({error:"PERFIL_PRIVILEGIADO_REQUER_ADMINISTRADOR"});
+    }
+    if(typeof password!=="string"||password.length<12){
+      return res.status(400).json({error:"PASSWORD_MIN_12"});
     }
 
     const userId = id();
