@@ -67,3 +67,25 @@ test("evidence integrity detects tampering and mismatched size", async () => {
   assert.equal(verifyEvidenceFile(path.join(dir,"missing"),hash,8),false);
  }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
+
+test("evidence download paths are restricted to the owning company", async () => {
+ const {isEvidencePathInsideTenant}=await import("../server/evidenceIntegrity.js");
+ const fs=await import("node:fs");
+ const os=await import("node:os");
+ const path=await import("node:path");
+ const crypto=await import("node:crypto");
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),"compliance-tenants-"));
+ try{
+  const tenant=(id)=>path.join(root,crypto.createHash("sha256").update(id).digest("hex"));
+  fs.mkdirSync(tenant("company-a"),{recursive:true});
+  fs.mkdirSync(tenant("company-b"),{recursive:true});
+  const own=path.join(tenant("company-a"),"file");
+  const other=path.join(tenant("company-b"),"file");
+  fs.writeFileSync(own,"own");
+  fs.writeFileSync(other,"other");
+  assert.equal(isEvidencePathInsideTenant(own,root,"company-a"),true);
+  assert.equal(isEvidencePathInsideTenant(other,root,"company-a"),false);
+  assert.equal(isEvidencePathInsideTenant(own,root,"company-b"),false);
+  assert.equal(isEvidencePathInsideTenant(path.join(root,"outside"),root,"company-a"),false);
+ }finally{fs.rmSync(root,{recursive:true,force:true})}
+});
