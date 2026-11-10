@@ -1,3 +1,4 @@
+import {MONITOR_SOURCES,probeRegulation,compareRegulationSnapshot} from "./regulatoryMonitor.js";
 import {validateAiRequest,buildAiMessages} from "./aiSafety.js";
 import express from "express";
 import cors from "cors";
@@ -274,6 +275,54 @@ app.post("/api/ai/compliance-briefing",authenticate,requirePermission("record:re
   return res.json({answer:answer.slice(0,5000),model,legalReviewRequired:true,liveLegalUpdate:false});
  }catch(e){return res.status(502).json({error:"AI_PROVIDER_UNAVAILABLE"})}
 });
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS regulatory_monitor_snapshots (
+ source_id TEXT PRIMARY KEY,
+ digest TEXT NOT NULL,
+ checked_at TEXT NOT NULL,
+ changed_at TEXT,
+ status TEXT NOT NULL,
+ error TEXT
+);
+`);
+let monitoring=false;
+async function runRegulatoryMonitor(){
+ if(monitoring)return {error:"MONITOR_BUSY"};
+ monitoring=true;
+ const results=[];
+ try{
+  for(const source of MONITOR_SOURCES){
+   const previous=db.prepare("SELECT * FROM regulatory_monitor_snapshots WHERE source_id=?").get(source.id);
+   try{
+    const current=await probeRegulation(source);
+    const status=compareRegulationSnapshot(previous,current);
+    db.prepare(`INSERT INTO regulatory_monitor_snapshots(source_id,digest,checked_at,changed_at,status,error)
+      VALUES(?,?,?,?,?,NULL) ON CONFLICT(source_id) DO UPDATE SET digest=excluded.digest,checked_at=excluded.checked_at,changed_at=excluded.changed_at,status=excluded.status,error=NULL`)
+      .run(source.id,current.digest,current.checkedAt,status==="CONTENT_CHANGED_REVIEW_REQUIRED"?current.checkedAt:previous?.changed_at||null,status);
+    results.push({sourceId:source.id,status,checkedAt:current.checkedAt});
+   }catch(e){
+    results.push({sourceId:source.id,status:"CHECK_FAILED",error:String(e.message).slice(0,100)});
+    if(previous)db.prepare("UPDATE regulatory_monitor_snapshots SET error=? WHERE source_id=?").run(String(e.message).slice(0,100),source.id);
+   }
+  }
+  return {results,legalValidityVerified:false};
+ }finally{monitoring=false}
+}
+app.get("/api/regulatory/monitor",authenticate,requirePermission("record:read"),(req,res)=>{
+ const snapshots=db.prepare("SELECT source_id,digest,checked_at,changed_at,status,error FROM regulatory_monitor_snapshots").all();
+ res.json({sources:MONITOR_SOURCES.map(x=>({...x,snapshot:snapshots.find(s=>s.source_id===x.id)||null})),legalValidityVerified:false});
+});
+app.post("/api/regulatory/monitor/run",authenticate,requirePermission("audit:read"),async(req,res)=>{
+ const result=await runRegulatoryMonitor();
+ if(result.error)return res.status(409).json(result);
+ audit(req,"REGULATORY_MONITOR_RUN","regulatory","",{count:result.results.length});
+ res.json(result);
+});
+if(process.env.REGULATORY_MONITOR_ENABLED==="true"){
+ setTimeout(()=>{runRegulatoryMonitor().catch(e=>console.error("REGULATORY_MONITOR",e.message))},20000);
+ setInterval(()=>{runRegulatoryMonitor().catch(e=>console.error("REGULATORY_MONITOR",e.message))},24*60*60*1000).unref();
+}
 
 app.post("/api/bootstrap", async (req, res) => {
   const bootstrapSecret = process.env.BOOTSTRAP_SECRET;
