@@ -698,20 +698,18 @@ app.put(
       });
     }
 
-    db.prepare(`
+    const expectedVersion = Number(req.get("x-record-version"));
+    if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
+      return res.status(428).json({error:"VERSION_REQUIRED", currentVersion:record.version});
+    }
+    const updated=db.prepare(`
       UPDATE records
-      SET
-        payload = ?,
-        version = version + 1,
-        updated_at = ?
-      WHERE id = ?
-      AND company_id = ?
-    `).run(
-      JSON.stringify(req.body || {}),
-      now(),
-      req.params.id,
-      req.user.companyId
-    );
+      SET payload = ?, version = version + 1, updated_at = ?
+      WHERE id = ? AND company_id = ? AND version = ?
+    `).run(JSON.stringify(req.body || {}),now(),req.params.id,req.user.companyId,expectedVersion);
+    if(updated.changes!==1){
+      return res.status(409).json({error:"VERSION_CONFLICT",currentVersion:record.version});
+    }
 
     audit(
       req,
@@ -723,9 +721,7 @@ app.put(
       }
     );
 
-    res.json({
-      ok: true,
-    });
+    res.json({ok:true,version:expectedVersion+1});
   }
 );
 
