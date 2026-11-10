@@ -69,12 +69,12 @@ const SECTOR_TOPICS = {
 "Energia":["integridade de ativos energéticos","segurança elétrica e bloqueios","licenças e autorizações setoriais","manutenção de instalações críticas","continuidade do fornecimento","gestão de emergências operacionais","controle ambiental de operações","segurança de prestadores de serviço","monitoramento de perdas e medições","requisitos de fiscalização setorial"]
 };
 SECTOR_TOPICS["Serviços"]=["contratos e níveis de serviço","qualidade da prestação","atendimento ao cliente","gestão de equipes externas","gestão de terceiros","continuidade dos serviços","licenciamento profissional","faturamento e cobrança","proteção de dados de clientes","tratamento de reclamações"];
-export function buildEnterpriseQuestions(segment="Outro", legacyQuestions=[]) {
+export function buildEnterpriseQuestions(segment="Outro") {
  const topics=SECTOR_TOPICS[segment]||DEFAULT_SECTOR;
  const sectorAreas=topics.map((topic,i)=>[`Ramo · ${String(i+1).padStart(2,"0")} · ${topic}`,topic]);
  const areas=[...ENTERPRISE_AREAS,...sectorAreas];
  const questions=areas.flatMap(([area,topic],ai)=>DIAGNOSTIC_DIMENSIONS.map(([dimension,template],di)=>({
-  id:`V46-${String(ai+1).padStart(2,"0")}-${String(di+1).padStart(2,"0")}`,
+  id:`V46-${encodeURIComponent(segment)}-${String(ai+1).padStart(2,"0")}-${String(di+1).padStart(2,"0")}`,
   area,text:template.replace("{tema}",topic),key:dimension,
   segment,dimension,topic,scope:ai<ENTERPRISE_AREAS.length?"transversal":"setorial",
   evidenceHint:`Solicitar documentos, registros e amostras referentes a ${topic}.`
