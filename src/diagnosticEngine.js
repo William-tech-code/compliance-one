@@ -17,12 +17,14 @@ export function assessDiagnostic(questions, answers, riskLibrary, riskLevel, fra
   actions.push({id:next("ACAO"),riskId:id,title:lib.action,description:lib.recommendation,responsible:lib.owner,priority:level,deadline:"",status:"Pendente de confirmação",evidenceRequired:"Evidência documental da implementação e eficácia.",automatic:true,created:new Date().toISOString()});
   if(lib.legal)legal.push({id:next("JUR"),riskId:id,title:"Avaliação jurídica — "+lib.title,reason:"Achado "+level.toLowerCase()+" relacionado a "+q.area+". Potencial impacto legal, regulatório, contratual ou de responsabilidade.",status:"Aguardando confirmação",responsible:"Jurídico",automatic:true,created:new Date().toISOString()});
  }
- for(const f of frameworkItems.slice(0,8)){
+ // Applicable frameworks are review obligations, not evidence of non-compliance.
+ // Only explicit confirmed gap findings can generate automatic risk candidates.
+ for(const f of frameworkItems.filter(x=>x.gapConfirmed===true && x.applicabilityReviewed===true).slice(0,8)){
   const id=next("RISCO");
   const impact=f.tier==="Jurisdictional"?4:3;
-  risks.push({id,title:"Exposição de framework — "+f.name,category:f.area,sourceQuestion:"ENGINE-GLOBAL:"+f.id,sourceText:"Camada recomendada: "+f.name,answer:"Detecção automática",p:3,i:impact,score:3*impact,level:riskLevel(3,impact),status:"Pendente de confirmação",cause:"O perfil da organização aciona uma camada de Compliance que precisa ser avaliada.",consequence:"Lacunas podem gerar exposição regulatória, contratual, operacional ou reputacional.",control:"Mapeamento de aplicabilidade a validar.",recommendation:"Executar gap assessment e encaminhar pontos jurídicos aplicáveis para validação.",responsible:"Compliance / Jurídico",created:new Date().toISOString(),automatic:true});
-  actions.push({id:next("ACAO"),riskId:id,title:"Gap assessment — "+f.name,description:"Avaliar aplicabilidade, controles, evidências e lacunas.",responsible:"Compliance / Jurídico",priority:riskLevel(3,impact),deadline:"",status:"Pendente de confirmação",evidenceRequired:"Matriz de aplicabilidade e evidências.",automatic:true,created:new Date().toISOString()});
-  legal.push({id:next("JUR"),riskId:id,title:"Validação jurídica — "+f.name,reason:"Framework acionado automaticamente pelo perfil global.",status:"Aguardando confirmação",responsible:"Jurídico",automatic:true,created:new Date().toISOString()});
+  risks.push({id,title:"Lacuna confirmada de framework — "+f.name,category:f.area,sourceQuestion:"ENGINE-GLOBAL:"+f.id,sourceText:"Lacuna revisada: "+f.name,answer:"Lacuna confirmada",p:3,i:impact,score:3*impact,level:riskLevel(3,impact),status:"Pendente de confirmação",cause:"Lacuna identificada em avaliação de aplicabilidade.",consequence:"Exposição regulatória, contratual ou operacional a validar.",control:"Controle com lacuna documentada.",recommendation:"Definir tratamento, responsável e evidência de eficácia.",responsible:"Compliance / Jurídico",created:new Date().toISOString(),automatic:true});
+  actions.push({id:next("ACAO"),riskId:id,title:"Tratar lacuna — "+f.name,description:"Validar e corrigir a lacuna identificada.",responsible:"Compliance / Jurídico",priority:riskLevel(3,impact),deadline:"",status:"Pendente de confirmação",evidenceRequired:"Matriz de aplicabilidade e evidências.",automatic:true,created:new Date().toISOString()});
+  legal.push({id:next("JUR"),riskId:id,title:"Validação jurídica — "+f.name,reason:"Lacuna de framework previamente revisada.",status:"Aguardando confirmação",responsible:"Jurídico",automatic:true,created:new Date().toISOString()});
  }
  return {risks,actions,legal};
 }
