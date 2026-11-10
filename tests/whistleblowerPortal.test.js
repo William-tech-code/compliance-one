@@ -26,6 +26,10 @@ test("public ethics intake stays encrypted and only designated team can view cas
   const team=await call("/api/users","POST",{name:"Responsável",email:"equipe@exemplo.test",password:"senhaforte12345",role:"Equipe de Apuração"},admin);
   assert.equal(team.status,201);
   const login=await call("/api/login","POST",{email:"equipe@exemplo.test",password:"senhaforte12345"});assert.equal(login.status,200);
+  for(let i=0;i<8;i++)assert.equal((await call("/api/login","POST",{email:"inexistente@exemplo.test",password:"tentativa"})).status,401);
+  const throttled=await call("/api/login","POST",{email:"inexistente@exemplo.test",password:"tentativa"});
+  assert.equal(throttled.status,429);
+  assert.equal((await call("/api/login","POST",{email:"equipe@exemplo.test",password:"senhaforte12345"})).status,200);
   const forbidden=await call("/api/ethics/team/cases","GET",undefined,admin);assert.equal(forbidden.status,403);
   const authorized=await call("/api/ethics/team-members","POST",{email:"admin@exemplo.test"},admin);assert.equal(authorized.status,200);
   const memberships=await call("/api/ethics/team-members","GET",undefined,admin);assert.equal(memberships.data.members.length,1);
@@ -54,6 +58,12 @@ test("public ethics intake stays encrypted and only designated team can view cas
   assert.equal((await call(`/api/ethics/team/cases/${caseId}`,"GET",undefined,otherLogin.data.token)).status,404);
   const detail=await call(`/api/ethics/team/cases/${caseId}`,"GET",undefined,login.data.token);assert.equal(detail.data.report.description,report);
   const updated=await call(`/api/ethics/team/cases/${caseId}/status`,"POST",{status:"Em triagem"},login.data.token);assert.equal(updated.status,200);
+  const history=await call(`/api/ethics/team/cases/${caseId}`,"GET",undefined,login.data.token);
+  assert.equal(history.status,200);
+  assert.equal(history.data.events.length,1);
+  assert.match(history.data.events[0].description,/Recebida → Em triagem/);
+  assert.ok(history.data.events[0].at);
+  assert.equal((await call(`/api/ethics/team/cases/${caseId}`,"GET",undefined,otherLogin.data.token)).status,404);
   const tracked=await call("/api/ethics/track","POST",{protocol:receipt.data.protocol,accessKey:receipt.data.accessKey});assert.equal(tracked.data.status,"Em triagem");
  }finally{child.kill();await new Promise(resolve=>{if(child.exitCode!==null)return resolve();child.once("exit",resolve);setTimeout(resolve,1500)});try{rmSync(tmp,{recursive:true,force:true,maxRetries:12,retryDelay:200})}catch{}}
 });

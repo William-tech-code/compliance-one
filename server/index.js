@@ -4,6 +4,7 @@ import {validateCorrectiveActionMutation} from "./correctiveActionGuard.js";
 import {MONITOR_SOURCES,probeRegulation,compareRegulationSnapshot} from "./regulatoryMonitor.js";
 import {validateAiRequest,buildAiMessages} from "./aiSafety.js";
 import {configureWhistleblower} from "./whistleblower.js";
+import {createLoginProtection} from "./loginProtection.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -98,6 +99,7 @@ app.use(express.json({ limit: "12mb" }));
 const id = () => crypto.randomUUID();
 
 const now = () => new Date().toISOString();
+const loginProtection = createLoginProtection();
 
 function createToken(user) {
   return jwt.sign(
@@ -515,6 +517,16 @@ app.post("/api/login", async (req, res) => {
     password,
   } = req.body || {};
 
+  if(typeof email!=="string"||typeof password!=="string"||email.length>254||password.length>1024){
+    return res.status(400).json({error:"CREDENCIAIS_INVALIDAS"});
+  }
+
+  const attempt=loginProtection.check(req.ip,email);
+  if(!attempt.allowed){
+    res.setHeader("Retry-After",String(attempt.retryAfter));
+    return res.status(429).json({error:"MUITAS_TENTATIVAS_AGUARDE"});
+  }
+
   const user = db
     .prepare(`
       SELECT *
@@ -522,9 +534,10 @@ app.post("/api/login", async (req, res) => {
       WHERE email = ?
       AND active = 1
     `)
-    .get((email || "").toLowerCase());
+    .get(email.trim().toLowerCase());
 
   if (!user) {
+    loginProtection.failure(attempt.key);
     return res.status(401).json({
       error: "INVALID_CREDENTIALS",
     });
@@ -536,6 +549,7 @@ app.post("/api/login", async (req, res) => {
   );
 
   if (!validPassword) {
+    loginProtection.failure(attempt.key);
     return res.status(401).json({
       error: "INVALID_CREDENTIALS",
     });
@@ -552,6 +566,8 @@ app.post("/api/login", async (req, res) => {
       WHERE id = ?
     `)
     .get(user.company_id);
+
+  loginProtection.success(attempt.key);
 
   res.json({
     token: createToken(user),

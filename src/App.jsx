@@ -23,6 +23,7 @@ import NexusExecutiveIntelligence from "./NexusExecutiveIntelligence";
 import NexusAutonomousActionCenter from "./NexusAutonomousActionCenter";
 
 const KEY = "nexus-compliance-v124-final-enterprise";
+const RELEASE_NOTICE_KEY = "nexora-release-notice-enterprise-v3";
 const DOCUMENT_CATALOG = [
 ["Código de Ética e Conduta","Governança","Todos","Alta","Princípios, comportamentos, conflitos, responsabilidades e orientações."],
 ["Política Anticorrupção e Antissuborno","Integridade","Todos","Crítica","Prevenção de corrupção, pagamentos indevidos e interação com agentes públicos."],
@@ -745,11 +746,11 @@ function load() {
 function AppCore() {
   const [s,setS] = useState(load);
   const [showReleaseNotice,setShowReleaseNotice] = useState(()=>{
-    try { return localStorage.getItem("nexora-release-notice-45-2")!=="dismissed"; }
+    try { return localStorage.getItem(RELEASE_NOTICE_KEY)!=="dismissed"; }
     catch { return true; }
   });
   const [releaseOpen,setReleaseOpen] = useState(false);
-  const acknowledgeRelease=()=>{setShowReleaseNotice(false);try{localStorage.setItem("nexora-release-notice-45-2","dismissed")}catch{}};
+  const acknowledgeRelease=()=>{setShowReleaseNotice(false);try{localStorage.setItem(RELEASE_NOTICE_KEY,"dismissed")}catch{}};
   const openRelease=()=>{acknowledgeRelease();setReleaseOpen(true)};
   const [showEntry,setShowEntry] = useState(()=>{ try { return sessionStorage.getItem("nexus-entry-v119") !== "1"; } catch { return true; } });
   const [page,setPage] = useState("dashboard");
@@ -1238,8 +1239,8 @@ function attach(files,owner,ownerId) {
         <div className="nexora-release-icon" aria-hidden="true">✦</div>
         <div className="nexora-release-copy">
           <span className="nexora-release-eyebrow">✦ NEXORA UPDATE CENTER · NOVIDADES DISPONÍVEIS</span>
-          <strong>Uma nova experiência de governança está aqui.</strong>
-          <p>Conheça a apresentação interativa desta versão, as melhorias de segurança e a central inteligente de conformidade.</p>
+          <strong>Mais proteção. Mais rastreabilidade. Uma experiência executiva.</strong>
+          <p>Conheça o histórico de apuração, as melhorias de acesso e o novo procedimento de backup verificado.</p>
         </div>
         <button className="nexora-release-explore" onClick={openRelease}>Ver atualização <span aria-hidden="true">↗</span></button>
         <button className="nexora-release-close" aria-label="Dispensar aviso" onClick={acknowledgeRelease}>×</button>
@@ -1322,13 +1323,15 @@ function NexoraUpdateExperience({onClose,onExplore}){
     {icon:"◈",title:"Diagnóstico por setor",detail:"800 perguntas organizadas em 32 áreas, com critérios específicos para o segmento da organização.",page:"diagnostico",label:"Abrir diagnóstico"},
     {icon:"◇",title:"Riscos rastreáveis",detail:"Planos de ação vinculados a riscos, responsáveis, evidências e prioridades verificáveis.",page:"riscos",label:"Explorar riscos"},
     {icon:"◎",title:"Governança e evidências",detail:"Revisão independente, trilhas de auditoria, preservação das evidências e isolamento entre organizações.",page:"dashboard",label:"Ir ao painel"},
-    {icon:"✦",title:"Inteligência regulatória",detail:"Referências oficiais para revisão humana; sem alegações de conformidade automática ou parecer jurídico substitutivo.",page:"standards",label:"Ver frameworks"}
+    {icon:"✦",title:"Inteligência regulatória",detail:"Referências oficiais para revisão humana; sem alegações de conformidade automática ou parecer jurídico substitutivo.",page:"standards",label:"Ver frameworks"},
+    {icon:"⚑",title:"Integridade e apuração",detail:"Canal externo independente, acesso exclusivo da equipe autorizada e histórico das mudanças de andamento.",page:"denuncias",label:"Abrir canal de denúncias"}
   ];
   useEffect(()=>{
     const previous=document.body.style.overflow;
     document.body.style.overflow="hidden";
-    const timer=setTimeout(()=>setPhase(1),640);
-    const ready=setTimeout(()=>setPhase(2),2200);
+    const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const timer=setTimeout(()=>setPhase(1),reduced?0:640);
+    const ready=setTimeout(()=>setPhase(2),reduced?0:2200);
     const key=(event)=>{if(event.key==="Escape")onClose()};
     window.addEventListener("keydown",key);
     return ()=>{clearTimeout(timer);clearTimeout(ready);document.body.style.overflow=previous;window.removeEventListener("keydown",key)};
@@ -1358,7 +1361,7 @@ function NexoraUpdateExperience({onClose,onExplore}){
         <small>{phase===2?"✓ NOVIDADES PRONTAS PARA EXPLORAR":"PREPARANDO APRESENTAÇÃO DAS NOVIDADES..."}</small>
       </div>
       <div className="nexora-update-details">
-        <div className="nexora-update-overline">RELEASE EXPERIENCE <b>01 / 04</b></div>
+        <div className="nexora-update-overline">RELEASE EXPERIENCE <b>{String(active+1).padStart(2,"0")} / {String(highlights.length).padStart(2,"0")}</b></div>
         <h3>Descubra o que evoluiu.</h3>
         <div className="nexora-update-tabs" role="tablist" aria-label="Áreas da atualização">{highlights.map((item,index)=><button key={item.title} role="tab" aria-selected={active===index} className={active===index?"selected":""} onClick={()=>setActive(index)}>{String(index+1).padStart(2,"0")}</button>)}</div>
         <div className="nexora-update-feature" key={feature.title}><div className="nexora-update-feature-icon">{feature.icon}</div><strong>{feature.title}</strong><p>{feature.detail}</p></div>
