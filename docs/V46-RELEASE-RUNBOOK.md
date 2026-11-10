@@ -17,10 +17,10 @@
 - Confirm `GET /api/health` returns HTTP 200, authenticated API reads/writes work, and database survives a restart.
 - Test version history and recovery; tenant isolation; revoked users; access control; AI without/with API key; regulatory monitor with failed/unreachable sources.
 - Take and verify an off-instance SQLite backup (including WAL-consistent snapshot), and rehearse recovery.
-- Conduct security review, including authorization enforcement for corrective actions and legal-review workflows on the server, before onboarding real customers.
+- Conduct independent security review of authorization, evidence lifecycle, malware screening, encryption at rest, retention, legal-review workflows and backup recovery before onboarding real customers.
 
 ## Boundaries
-- SHA-256 evidence registration currently stores metadata **only**. It does not store the original evidence file. Secure object storage and access controls are required before claiming complete evidence management.
+- Original evidence files are now stored in the tenant-scoped directory under `/var/data/evidence` (or configured `EVIDENCE_STORAGE_PATH`), with authenticated retrieval and SHA-256. Validate upload/download, retention, backups, malware scanning and at-rest encryption before onboarding real customers.
 - Regulatory monitor detects changes to downloaded source bytes, not legal validity or applicability. Human review remains mandatory.
 - Generative AI is optional and not a substitute for legal advice. The endpoint transmits only an allowlisted operational summary and user question.
 - Do not disable the persistent-disk startup check. Do not claim deployment complete while disk is absent.
