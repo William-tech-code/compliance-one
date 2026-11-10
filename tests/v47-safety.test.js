@@ -89,3 +89,18 @@ test("evidence download paths are restricted to the owning company", async () =>
   assert.equal(isEvidencePathInsideTenant(path.join(root,"outside"),root,"company-a"),false);
  }finally{fs.rmSync(root,{recursive:true,force:true})}
 });
+
+test("AI throttling enforces wait time and bounded memory", async () => {
+ const {createAiThrottle}=await import("../server/aiThrottle.js");
+ let time=100000;
+ const throttle=createAiThrottle({intervalMs:15000,maxEntries:2,clock:()=>time});
+ assert.equal(throttle.check("user-a").allowed,true);
+ const denied=throttle.check("user-a");
+ assert.equal(denied.allowed,false);
+ assert.equal(denied.retryAfter,15000);
+ assert.equal(throttle.check("user-b").allowed,true);
+ assert.equal(throttle.check("user-c").allowed,true);
+ assert.equal(throttle.size(),2);
+ time+=15000;
+ assert.equal(throttle.check("user-c").allowed,true);
+});
