@@ -27,6 +27,11 @@ test("public ethics intake stays encrypted and only designated team can view cas
   assert.equal(team.status,201);
   const login=await call("/api/login","POST",{email:"equipe@exemplo.test",password:"senhaforte12345"});assert.equal(login.status,200);
   const forbidden=await call("/api/ethics/team/cases","GET",undefined,admin);assert.equal(forbidden.status,403);
+  const authorized=await call("/api/ethics/team-members","POST",{email:"admin@exemplo.test"},admin);assert.equal(authorized.status,200);
+  const memberships=await call("/api/ethics/team-members","GET",undefined,admin);assert.equal(memberships.data.members.length,1);
+  assert.equal((await call("/api/ethics/team/cases","GET",undefined,admin)).status,200);
+  const revoked=await call("/api/ethics/team-members/revoke","POST",{email:"admin@exemplo.test"},admin);assert.equal(revoked.status,200);
+  assert.equal((await call("/api/ethics/team/cases","GET",undefined,admin)).status,403);
   const created=await call("/api/ethics/channel","POST",{},admin);assert.equal(created.status,201);assert.match(created.data.publicPath,/^\/denunciar\//);
   const key=created.data.publicPath.split("/")[2];
   const publicInfo=await call(`/api/ethics/public/${key}`);assert.equal(publicInfo.data.organization,"Teste Ética");

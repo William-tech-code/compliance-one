@@ -12,6 +12,7 @@
 
 - Administrador autenticado: menu **Canal de Denúncias** → **Ativar link**. O link aleatório é específico da organização e não permite ver relatos.
 - Administrador cadastra os membros designados sob o papel **Equipe de Apuração**, com senha individual de pelo menos 12 caracteres. Administradores comuns não têm permissão de leitura dos casos.
+- Uma conta existente, inclusive administrativa, pode receber uma autorização adicional de apuração **somente mediante concessão explícita por administrador autenticado** e restrita à própria organização. A autorização é auditada e revogável; nenhuma permissão é concedida apenas pela correspondência de um endereço de e-mail.
 - Denunciante utiliza `/denunciar/<chave-do-canal>` sem login, escolhe categoria e descreve os fatos. Anexos **não** fazem parte deste primeiro lote.
 - Após envio, o sistema fornece protocolo e chave privada de consulta. A chave não é recuperável; deve ser salva pelo denunciante.
 - Equipe acessa `/equipe-denuncias` com login próprio. O token da sessão fica em memória e não é gravado no armazenamento do navegador.
