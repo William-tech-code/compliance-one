@@ -441,7 +441,7 @@ const SEGMENTS = [
   "Supermercados / Varejo","Logística / Transportes","Produção / Indústria",
   "Metalúrgica","Química / Petroquímica","Hotelaria / Turismo","Saúde / Hospitalar",
   "Construção","Gestão Pública","Agronegócio","Financeiro","Educação","Tecnologia",
-  "Serviços","Energia","Outro"
+  "Serviços","Energia","Cartórios / Tabelionatos de Notas","Outro"
 ];
 const SIZES = ["Microempresa","Pequena empresa","Média empresa","Grande empresa","Órgão público"];
 const MODES = ["SaaS","Assessoria","SaaS + Assessoria"];
