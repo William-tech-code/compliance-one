@@ -818,7 +818,6 @@ function AppCore() {
         }else{
           const created=await apiPost("/records/workspace",s);
           remoteRecordIdRef.current=created?.id||null;
-        remoteRecordVersionRef.current=1;
           remoteRecordVersionRef.current=1;
           setRemoteRecordId(created?.id||null);
         }
@@ -887,11 +886,13 @@ function AppCore() {
         });
         setRemoteRecordId(record.id);
         remoteRecordIdRef.current=record.id;
+        remoteRecordVersionRef.current=record.version;
       }else{
         const seed=seedState||s;
         const created=await apiPost("/records/workspace",seed);
         setRemoteRecordId(created?.id||null);
         remoteRecordIdRef.current=created?.id||null;
+        remoteRecordVersionRef.current=1;
       }
       hydrationRef.current=true;
       setApiUser(me?.user||null);
