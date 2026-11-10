@@ -743,6 +743,7 @@ function AppCore() {
   const [apiUser,setApiUser] = useState(null);
   const [apiLoading,setApiLoading] = useState(true);
   const [apiSyncing,setApiSyncing] = useState(false);
+  const [apiSyncError,setApiSyncError] = useState(false);
   const [remoteRecordId,setRemoteRecordId] = useState(null);
   const hydrationRef = useRef(false);
   const remoteRecordIdRef = useRef(null);
@@ -815,7 +816,9 @@ function AppCore() {
           remoteRecordIdRef.current=created?.id||null;
           setRemoteRecordId(created?.id||null);
         }
+        setApiSyncError(false);
       }catch(err){
+        setApiSyncError(true);
         console.warn("NEXUS API sync:",err);
       }finally{
         setApiSyncing(false);
@@ -1175,7 +1178,7 @@ function attach(files,owner,ownerId) {
           {apiUser
             ? <button onClick={disconnectApi}>● API V124 · {apiUser.role}</button>
             : <button onClick={()=>setModal("auth")}>⇄ Conectar API</button>}
-          <span>{apiUser?(apiSyncing?"● Sincronizando":"● API conectada"):"● Modo local"}</span>
+          <span>{apiUser?(apiSyncing?"● Sincronizando":apiSyncError?"⚠ Falha ao salvar na API":"● API conectada"):"● Modo local"}</span>
         </div>
       </header>
 
