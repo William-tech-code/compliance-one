@@ -1,3 +1,4 @@
+import EnterpriseGovernanceCenter from "./EnterpriseGovernanceCenter";
 import ExecutiveIntelligenceCenter from "./ExecutiveIntelligenceCenter";
 import ComplianceIntelligencePanel from "./ComplianceIntelligencePanel";
 import CorrectiveActionsWorkspace from "./CorrectiveActionsWorkspace";
@@ -1250,6 +1251,7 @@ function attach(files,owner,ownerId) {
         </div>
       </section>}
       {page==="dashboard" && <ExecutiveIntelligenceCenter workspace={s} onNavigate={setPage}/>}
+      {page==="dashboard" && <EnterpriseGovernanceCenter workspace={s} setWorkspace={setS} reviewer={apiUser?.email||""} notify={notify}/>}
       {page==="dashboard" && <section style={{margin:"12px 16px",padding:14,border:"1px solid #526b81",borderRadius:12}}>
         <strong>Governança operacional · ações corretivas verificadas</strong>
         <p>{operationalActions.total} ações registradas no novo fluxo · {operationalActions.overdue} vencidas · {operationalActions.pendingValidation} aguardando validação independente · {operationalActions.completed} concluídas</p>
