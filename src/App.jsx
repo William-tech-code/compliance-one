@@ -660,10 +660,10 @@ function questionBank(company={}, globalProfile={}) {
     ...sectorTopics.map(topic=>[topic,"sector"])
   ];
   // 25 áreas (19 corporativas + 6 setoriais) × 32 verificações = 800 itens.
-  // IDs estáveis por posição preservam respostas existentes ao reabrir o diagnóstico.
+  // IDs versionados impedem associar respostas antigas a perguntas diferentes.
   return topics.flatMap(([area,key],areaIndex)=>
     DEEP_AUDIT_DIMENSIONS.map(([dimension,template],dimensionIndex)=>({
-      id:`Q${String(areaIndex*DEEP_AUDIT_DIMENSIONS.length+dimensionIndex+1).padStart(3,"0")}`,
+      id:`V46-Q${String(areaIndex*DEEP_AUDIT_DIMENSIONS.length+dimensionIndex+1).padStart(3,"0")}`,
       area,
       dimension,
       sector:segment,
