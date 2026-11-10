@@ -1,3 +1,4 @@
+import {resolveRegulatoryReview} from "./regulatoryReview.js";
 import {validateEvidenceReferences} from "./evidenceGuard.js";
 import {validateGovernanceMutation} from "./governanceGuard.js";
 import {validateCorrectiveActionMutation} from "./correctiveActionGuard.js";
@@ -337,8 +338,7 @@ app.get("/api/regulatory/monitor",authenticate,requirePermission("record:read"),
  const reviews=db.prepare("SELECT source_id,digest,decision,reviewed_at FROM regulatory_tenant_reviews WHERE company_id=?").all(req.user.companyId);
  res.json({sources:MONITOR_SOURCES.map(x=>{
   const snapshot=snapshots.find(s=>s.source_id===x.id)||null;
-  const review=snapshot?reviews.find(r=>r.source_id===x.id&&r.digest===snapshot.digest):null;
-  return {...x,snapshot:snapshot?{...snapshot,status:review?.decision||snapshot.status,tenantReview:review||null}:null};
+  return {...x,snapshot:resolveRegulatoryReview(snapshot,reviews)};
  }),legalValidityVerified:false});
 });
 app.post("/api/regulatory/monitor/run",authenticate,requirePermission("audit:read"),async(req,res)=>{
