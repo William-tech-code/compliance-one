@@ -65,6 +65,17 @@ CREATE TABLE IF NOT EXISTS records (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS record_versions (
+  record_id TEXT NOT NULL,
+  company_id TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  payload TEXT NOT NULL,
+  changed_by TEXT,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (record_id, company_id, version)
+);
+CREATE INDEX IF NOT EXISTS idx_record_versions_company ON record_versions(company_id, record_id, version);
+
 `);
 
 app.use(helmet());
@@ -686,6 +697,32 @@ app.post(
   }
 );
 
+app.get(
+  "/api/records/:id/versions",
+  authenticate,
+  requirePermission("record:read"),
+  (req,res)=>{
+    const record=db.prepare("SELECT id,version FROM records WHERE id=? AND company_id=?").get(req.params.id,req.user.companyId);
+    if(!record)return res.status(404).json({error:"NOT_FOUND"});
+    const versions=db.prepare("SELECT version,changed_by,created_at FROM record_versions WHERE record_id=? AND company_id=? ORDER BY version DESC LIMIT 100").all(req.params.id,req.user.companyId);
+    res.json({recordId:record.id,currentVersion:record.version,versions});
+  }
+);
+app.get(
+  "/api/records/:id/versions/:version",
+  authenticate,
+  requirePermission("record:read"),
+  (req,res)=>{
+    const version=Number(req.params.version);
+    if(!Number.isSafeInteger(version)||version<1)return res.status(400).json({error:"INVALID_VERSION"});
+    const record=db.prepare("SELECT id FROM records WHERE id=? AND company_id=?").get(req.params.id,req.user.companyId);
+    if(!record)return res.status(404).json({error:"NOT_FOUND"});
+    const snapshot=db.prepare("SELECT version,payload,changed_by,created_at FROM record_versions WHERE record_id=? AND company_id=? AND version=?").get(req.params.id,req.user.companyId,version);
+    if(!snapshot)return res.status(404).json({error:"VERSION_NOT_FOUND"});
+    res.json({...snapshot,payload:JSON.parse(snapshot.payload)});
+  }
+);
+
 app.put(
   "/api/records/:id",
   authenticate,
@@ -713,13 +750,29 @@ app.put(
     if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
       return res.status(428).json({error:"VERSION_REQUIRED", currentVersion:record.version});
     }
-    const updated=db.prepare(`
-      UPDATE records
-      SET payload = ?, version = version + 1, updated_at = ?
-      WHERE id = ? AND company_id = ? AND version = ?
-    `).run(JSON.stringify(req.body || {}),now(),req.params.id,req.user.companyId,expectedVersion);
-    if(updated.changes!==1){
+    if (record.version !== expectedVersion) {
       return res.status(409).json({error:"VERSION_CONFLICT",currentVersion:record.version});
+    }
+    const timestamp=now();
+    const updated=db.transaction(()=>{
+      db.prepare(`
+        INSERT OR IGNORE INTO record_versions (record_id,company_id,version,payload,changed_by,created_at)
+        VALUES (?,?,?,?,?,?)
+      `).run(record.id,req.user.companyId,record.version,record.payload,req.user.sub,timestamp);
+      const write=db.prepare(`
+        UPDATE records SET payload=?, version=version+1, updated_at=?
+        WHERE id=? AND company_id=? AND version=?
+      `).run(JSON.stringify(req.body||{}),timestamp,req.params.id,req.user.companyId,expectedVersion);
+      if(write.changes!==1)throw new Error("CONCURRENT_UPDATE");
+      db.prepare(`
+        INSERT INTO record_versions (record_id,company_id,version,payload,changed_by,created_at)
+        VALUES (?,?,?,?,?,?)
+      `).run(record.id,req.user.companyId,expectedVersion+1,JSON.stringify(req.body||{}),req.user.sub,timestamp);
+      return write;
+    });
+    try {updated();} catch(error){
+      if(error.message==="CONCURRENT_UPDATE")return res.status(409).json({error:"VERSION_CONFLICT"});
+      throw error;
     }
 
     audit(
