@@ -5,7 +5,7 @@
 - Reuses V46 diagnostic, regulatory monitor, AI endpoint, risk/action/evidence lifecycle and tenant workspace.
 - Automated tests for executive metrics and enterprise register added to existing release workflow.
 ## Not yet production-complete
-- The governance register uses the existing workspace persistence and UI checks; implement **server-side authorization and immutable history** for its approvals before production.
+- Governance register mutations now receive server-side validation on workspace create/update, including independent approval, actor matching and immutable audit history. An independent penetration test and role-specific authorization review remain required before production.
 - Whistleblower intake is deliberately disabled: confidentiality, separate permissions, restricted storage and anti-retaliation controls must be implemented first.
 - Third-party register is not an external due-diligence verification service.
 - Academy is a training register, not yet an LMS with courses, exams or certificates.
