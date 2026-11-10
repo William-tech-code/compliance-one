@@ -1,3 +1,4 @@
+import CorrectiveActionsWorkspace from "./CorrectiveActionsWorkspace";
 import {complianceOperationsSummary} from "./complianceOperations";
 import {generateComplianceBriefing} from "./complianceBriefing";
 import {regulatoryIntelligenceSummary,createRegulatoryReview} from "./regulatoryIntelligence";
@@ -1260,6 +1261,7 @@ function attach(files,owner,ownerId) {
         {page==="questionario" && <Questionnaire s={s} questions={questions} answered={answered} answer={answer} finish={finish}/>}
         {page==="riscos" && <AutoRisks s={s} stats={stats} confirm={confirmRisks} finish={finish} select={x=>setDetail({type:"risk",item:x})}/>}
         {page==="acoes" && <AutoActions s={s} confirm={confirmActions} finish={finish}/>}
+        {page==="acoes" && <CorrectiveActionsWorkspace workspace={s} setWorkspace={setS} reviewer={apiUser?.email||""} notify={notify}/>}
         {page==="evidencias" && <Evidence s={s} attach={attach} finish={finish}/>}
         {page==="juridico" && <AutoLegal s={s} confirm={confirmLegal} finish={finish}/>}
         {page==="matriz-filosofica" && <PhilosophyMatrix s={s} openDocument={d=>setDetail({type:"document",item:d})} />}
