@@ -1,3 +1,4 @@
+import {validateCorrectiveActionMutation} from "./correctiveActionGuard.js";
 import {MONITOR_SOURCES,probeRegulation,compareRegulationSnapshot} from "./regulatoryMonitor.js";
 import {validateAiRequest,buildAiMessages} from "./aiSafety.js";
 import express from "express";
@@ -839,6 +840,11 @@ app.put(
       });
     }
 
+    try{
+      validateCorrectiveActionMutation(JSON.parse(record.payload),req.body||{},req.user.email);
+    }catch(error){
+      return res.status(422).json({error:error.message});
+    }
     const expectedVersion = Number(req.get("x-record-version"));
     if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
       return res.status(428).json({error:"VERSION_REQUIRED", currentVersion:record.version});
