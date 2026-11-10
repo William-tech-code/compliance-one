@@ -1221,7 +1221,7 @@ function Advance({title,text,onClick,disabled=false,label="Avançar →"}){retur
 
 function FirstAccess({onStart,onDemo}){
   const [boot,setBoot]=useState(false),[stage,setStage]=useState(0);
-  useEffect(()=>{if(!boot)return;const t=setInterval(()=>setStage(x=>Math.min(4,x+1)),1600);return()=>clearInterval(t)},[boot]);
+  useEffect(()=>{if(!boot)return;const t=setInterval(()=>setStage(x=>Math.min(4,x+1)),130);return()=>clearInterval(t)},[boot]);
   const lines=["Inicializando Intelligence Core","Mapeando arquitetura de Compliance","Preparando Risk Engine","Preparando Legal Intelligence","Ambiente pronto"];
   return <div className={"ai-entry "+(boot?"booting":"")}>
     <div className="ai-stars"/><div className="ai-grid-floor"/><div className="ai-vignette"/>
