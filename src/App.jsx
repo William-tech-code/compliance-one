@@ -749,6 +749,8 @@ function AppCore() {
     catch { return true; }
   });
   const [releaseOpen,setReleaseOpen] = useState(false);
+  const acknowledgeRelease=()=>{setShowReleaseNotice(false);try{localStorage.setItem("nexora-release-notice-45-2","dismissed")}catch{}};
+  const openRelease=()=>{acknowledgeRelease();setReleaseOpen(true)};
   const [showEntry,setShowEntry] = useState(()=>{ try { return sessionStorage.getItem("nexus-entry-v119") !== "1"; } catch { return true; } });
   const [page,setPage] = useState("dashboard");
   const [busy,setBusy] = useState(null);
@@ -1239,13 +1241,13 @@ function attach(files,owner,ownerId) {
           <strong>Uma nova experiência de governança está aqui.</strong>
           <p>Conheça a apresentação interativa desta versão, as melhorias de segurança e a central inteligente de conformidade.</p>
         </div>
-        <button className="nexora-release-explore" onClick={()=>setReleaseOpen(true)}>Ver atualização <span aria-hidden="true">↗</span></button>
-        <button className="nexora-release-close" aria-label="Dispensar aviso" onClick={()=>{setShowReleaseNotice(false);try{localStorage.setItem("nexora-release-notice-45-2","dismissed")}catch{}}}>×</button>
+        <button className="nexora-release-explore" onClick={openRelease}>Ver atualização <span aria-hidden="true">↗</span></button>
+        <button className="nexora-release-close" aria-label="Dispensar aviso" onClick={acknowledgeRelease}>×</button>
       </section>}
       <header><div><small>NEXUS / INTELLIGENCE CENTER / {page.toUpperCase()}</small><strong>{nav.find(x=>x[0]===page)?.[2]||"Command Center"}</strong></div>
         <div className="top-actions">
           <button aria-label="Ir ao Canal de Denúncias" onClick={()=>setPage("denuncias")}>⚑ Canal de Denúncias</button>
-          <button className="nexora-update-bell" aria-label="Abrir central de novidades e atualizações" onClick={()=>setReleaseOpen(true)}>♧ <span>Novidades</span><i aria-hidden="true"/></button>
+          <button className="nexora-update-bell" aria-label="Abrir central de novidades e atualizações" onClick={openRelease}>♧ <span>Novidades</span><i aria-hidden="true"/></button>
           <button onClick={()=>setModal("company")}>✎ Editar empresa</button>
           <button onClick={exportBackup}>↓ Backup</button>
           {apiUser && <button onClick={openVersionHistory}>◷ Histórico de versões</button>}
@@ -1325,8 +1327,8 @@ function NexoraUpdateExperience({onClose,onExplore}){
   useEffect(()=>{
     const previous=document.body.style.overflow;
     document.body.style.overflow="hidden";
-    const timer=setTimeout(()=>setPhase(1),420);
-    const ready=setTimeout(()=>setPhase(2),1150);
+    const timer=setTimeout(()=>setPhase(1),640);
+    const ready=setTimeout(()=>setPhase(2),2200);
     const key=(event)=>{if(event.key==="Escape")onClose()};
     window.addEventListener("keydown",key);
     return ()=>{clearTimeout(timer);clearTimeout(ready);document.body.style.overflow=previous;window.removeEventListener("keydown",key)};
@@ -1334,6 +1336,15 @@ function NexoraUpdateExperience({onClose,onExplore}){
   const feature=highlights[active];
   return <div className="nexora-update-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)onClose()}}>
     <section className="nexora-update-modal" role="dialog" aria-modal="true" aria-label="Apresentação das novidades do Compliance One">
+      {phase<2&&<div className="nexora-cinematic-intro" role="status" aria-live="polite">
+        <div className="nexora-cinematic-rays" aria-hidden="true"/>
+        <div className="nexora-cinematic-symbol" aria-hidden="true"><span>N</span><i/><i/></div>
+        <span className="nexora-cinematic-kicker">NEXORA · ENTERPRISE EXPERIENCE</span>
+        <h2>{phase===0?"Uma nova era começa agora.":"Inteligência em movimento."}</h2>
+        <p>{phase===0?"Iniciando apresentação da versão…":"Preparando as novidades para você explorar…"}</p>
+        <div className="nexora-cinematic-track"><span style={{width:phase===0?"28%":"76%"}}/></div>
+        <small>APRESENTAÇÃO VISUAL · NENHUM DADO É ALTERADO</small>
+      </div>}
       <button className="nexora-update-dismiss" aria-label="Fechar novidades" onClick={onClose}>×</button>
       <div className="nexora-update-stage">
         <div className="nexora-update-mesh" aria-hidden="true"/>

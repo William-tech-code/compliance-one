@@ -1,5 +1,6 @@
 import React,{useState} from "react";
 import {apiGet,apiPost} from "./api";
+import "./ComplianceIntelligencePanel.css";
 export default function ComplianceIntelligencePanel({workspace,authenticated,notify}){
  const [question,setQuestion]=useState("");
  const [answer,setAnswer]=useState("");
@@ -35,24 +36,21 @@ export default function ComplianceIntelligencePanel({workspace,authenticated,not
   try{await apiPost("/regulatory/monitor/"+encodeURIComponent(id)+"/review",{decision,notes:notes[id]||""});await load();notify("Revisão registrada")}
   catch(e){setError(e.message)}finally{setBusy(false)}
  };
- return <section style={{padding:20,margin:"16px 0",border:"1px solid #526b81",borderRadius:12}}>
-  <h2>NEXORA Intelligence · IA e monitor normativo</h2>
-  <p>IA opcional com contexto resumido, sem enviar documentos. Respostas são orientativas e dependem de validação humana.</p>
-  {!authenticated&&<p>Conecte uma sessão autenticada para acessar estes serviços.</p>}
-  <textarea aria-label="Pergunta para a IA" placeholder="Pergunte sobre riscos, controles ou prioridades" value={question} onChange={e=>setQuestion(e.target.value)} maxLength={1800} style={{width:"100%",minHeight:80}}/>
-  <button disabled={!authenticated||busy||!question.trim()} onClick={ask}>Gerar análise com IA</button>
-  {answer&&<div style={{whiteSpace:"pre-wrap",padding:12}}><strong>Resposta preliminar — revisar juridicamente</strong><p>{answer}</p></div>}
-  <hr/>
-  <p>Monitoramento de alterações no conteúdo de fontes oficiais. Mudança de conteúdo não significa, por si só, alteração legislativa ou vigência.</p>
-  <button disabled={!authenticated||busy} onClick={load}>Consultar monitor</button>
-  <button disabled={!authenticated||busy} onClick={check}>Verificar fontes agora</button>
-  {monitor?.sources?.map(s=><article key={s.id} style={{padding:10,borderBottom:"1px solid #526b81"}}>
-   <strong>{s.reference}</strong> · {s.snapshot?.status||"Não verificada"} · {s.snapshot?.checked_at||"Sem verificação"}
-   <p><a href={s.url} target="_blank" rel="noopener noreferrer">Fonte oficial</a></p>
-   {s.snapshot?.status==="CONTENT_CHANGED_REVIEW_REQUIRED"&&<><textarea aria-label={"Análise "+s.id} placeholder="Fundamentação da revisão (mínimo 12 caracteres)" value={notes[s.id]||""} onChange={e=>setNotes(p=>({...p,[s.id]:e.target.value}))} style={{width:"100%"}}/>
-    <button disabled={busy||(notes[s.id]||"").trim().length<12} onClick={()=>review(s.id,"REVIEWED")}>Revisado</button>
-    <button disabled={busy||(notes[s.id]||"").trim().length<12} onClick={()=>review(s.id,"NEEDS_ACTION")}>Exige adequação</button></>}
-  </article>)}
-  {error&&<p role="alert">{error}</p>}
+ return <section className="nexora-intel-panel" aria-label="Inteligência regulatória NEXORA">
+  <div className="nexora-intel-head"><div><span className="nexora-intel-eyebrow">✦ NEXORA INTELLIGENCE · REGULATORY COMMAND</span><h2>Inteligência regulatória</h2><p>IA aplicada a riscos e acompanhamento verificável de fontes oficiais.</p></div><span className="nexora-intel-status">{authenticated?"● Sessão autenticada":"○ Conexão necessária"}</span></div>
+  {!authenticated&&<div className="nexora-intel-alert" role="status"><b>Conecte sua API para ativar os recursos.</b><span>Use o botão “Conectar API” na barra superior. Sua pergunta permanece no navegador até que você solicite a análise.</span></div>}
+  <div className="nexora-intel-grid">
+   <section className="nexora-intel-card"><div className="nexora-intel-card-title"><span className="nexora-intel-icon">✦</span><div><small>ASSISTENTE DE PRIORIDADES</small><h3>Análise orientativa com IA</h3></div></div><p>Contexto resumido, sem envio de documentos. As respostas exigem revisão humana e não substituem parecer jurídico.</p>
+    <label htmlFor="nexora-ai-question">Sua pergunta</label><textarea id="nexora-ai-question" aria-label="Pergunta para a IA" placeholder="Ex.: Quais controles devo priorizar para mitigar os riscos identificados?" value={question} onChange={e=>setQuestion(e.target.value)} maxLength={1800}/>
+    <div className="nexora-intel-actions"><span>{question.length} / 1800 caracteres</span><button className="nexora-intel-primary" disabled={!authenticated||busy||!question.trim()} onClick={ask}>{busy?"Processando…":"✦ Gerar análise com IA"}</button></div>
+    {answer&&<div className="nexora-intel-result" aria-live="polite"><strong>Resposta preliminar · revisão obrigatória</strong><p>{answer}</p></div>}
+   </section>
+   <section className="nexora-intel-card"><div className="nexora-intel-card-title"><span className="nexora-intel-icon">◉</span><div><small>REGULATORY MONITOR</small><h3>Monitoramento normativo</h3></div></div><p>Detecta mudanças no conteúdo das fontes oficiais cadastradas. A identificação de mudanças não comprova, isoladamente, alteração da legislação ou vigência.</p>
+    <div className="nexora-intel-monitor"><span>FONTES OFICIAIS</span><strong>{monitor?.sources?.length??"—"}</strong><small>{monitor?"Fontes retornadas pelo monitor":"Aguardando consulta autenticada"}</small></div>
+    <div className="nexora-intel-actions"><button className="nexora-intel-secondary" disabled={!authenticated||busy} onClick={load}>Consultar monitor</button><button className="nexora-intel-primary" disabled={!authenticated||busy} onClick={check}>↻ Verificar fontes</button></div>
+   </section>
+  </div>
+  {monitor?.sources?.length>0&&<section className="nexora-intel-sources"><h3>Fontes em acompanhamento</h3>{monitor.sources.map(s=><article key={s.id}><div><strong>{s.reference}</strong><span>{s.snapshot?.status||"Não verificada"} · {s.snapshot?.checked_at||"Sem verificação"}</span></div><a href={s.url} target="_blank" rel="noopener noreferrer">Abrir fonte oficial ↗</a>{s.snapshot?.status==="CONTENT_CHANGED_REVIEW_REQUIRED"&&<div className="nexora-intel-review"><textarea aria-label={"Análise "+s.id} placeholder="Fundamentação da revisão (mínimo 12 caracteres)" value={notes[s.id]||""} onChange={e=>setNotes(p=>({...p,[s.id]:e.target.value}))}/><button disabled={busy||(notes[s.id]||"").trim().length<12} onClick={()=>review(s.id,"REVIEWED")}>Revisado</button><button disabled={busy||(notes[s.id]||"").trim().length<12} onClick={()=>review(s.id,"NEEDS_ACTION")}>Exige adequação</button></div>}</article>)}</section>}
+  {error&&<p className="nexora-intel-error" role="alert">⚠ {error}</p>}
  </section>;
 }

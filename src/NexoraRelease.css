@@ -35,6 +35,21 @@
 .nexora-update-bell i { position:absolute; top:5px; right:5px; width:7px; height:7px; border-radius:50%; background:#64f6d2; box-shadow:0 0 0 3px rgba(100,246,210,.14); }
 .nexora-update-backdrop { position:fixed; inset:0; z-index:99999; display:grid; place-items:center; padding:24px; background:rgba(2,10,22,.84); backdrop-filter:blur(18px); animation:nexora-notice-in .3s ease both; }
 .nexora-update-modal { position:relative; width:min(1040px,100%); max-height:min(92vh,850px); display:grid; grid-template-columns:1.08fr .92fr; overflow:auto; border:1px solid rgba(109,244,218,.24); border-radius:26px; background:#081a2d; box-shadow:0 28px 100px rgba(0,0,0,.58); color:#f1fdff; font-family:system-ui,-apple-system,sans-serif; }
+.nexora-cinematic-intro { position:absolute; inset:0; z-index:3; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:28px; overflow:hidden; background:radial-gradient(ellipse at 50% 43%,#15576a 0%,#082238 38%,#030b17 80%); animation:nexora-cinematic-reveal .7s ease both; }
+.nexora-cinematic-rays { position:absolute; inset:-40%; pointer-events:none; opacity:.45; background:repeating-conic-gradient(from 0deg,transparent 0deg 13deg,rgba(67,232,226,.085) 14deg 15deg,transparent 16deg 29deg); animation:nexora-cinematic-spin 22s linear infinite; }
+.nexora-cinematic-symbol { position:relative; width:126px; height:126px; margin-bottom:35px; display:grid; place-items:center; border:1px solid #79f4df; border-radius:32px; background:linear-gradient(135deg,#1b9cb0,#3158af); box-shadow:0 0 75px rgba(81,244,226,.4); animation:nexora-cinematic-float 2.3s ease-in-out infinite; }
+.nexora-cinematic-symbol span {font-size:83px; font-weight:900; line-height:1; color:#eafffc; text-shadow:0 3px 22px rgba(0,0,0,.2)}
+.nexora-cinematic-symbol i {position:absolute; inset:-22px; border:1px solid rgba(125,241,228,.46); border-radius:45px; animation:nexora-orbit 7s linear infinite}
+.nexora-cinematic-symbol i:last-child {inset:-43px; border-radius:50%; opacity:.5; animation-direction:reverse; animation-duration:11s}
+.nexora-cinematic-kicker {position:relative; color:#8cf8e7; font-size:11px; font-weight:800; letter-spacing:.24em}
+.nexora-cinematic-intro h2 {position:relative; margin:16px 0 5px; font-size:clamp(27px,4vw,48px); letter-spacing:-.04em; line-height:1.1; color:#f5ffff}
+.nexora-cinematic-intro p {position:relative; font-size:14px; color:#b1d2df}
+.nexora-cinematic-track {position:relative; width:min(370px,80%); height:5px; margin:32px 0 15px; border-radius:99px; overflow:hidden; background:#275268}
+.nexora-cinematic-track span {display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,#24b1d3,#91ffe0); box-shadow:0 0 18px #6aeedb; transition:width 1.2s cubic-bezier(.2,.8,.2,1)}
+.nexora-cinematic-intro small {position:relative; color:#739aaf; font-size:10px; letter-spacing:.12em}
+@keyframes nexora-cinematic-reveal {from{opacity:0;filter:blur(12px)}to{opacity:1;filter:blur(0)}}
+@keyframes nexora-cinematic-spin {to{transform:rotate(360deg)}}
+@keyframes nexora-cinematic-float {50%{transform:translateY(-8px)}}
 .nexora-update-dismiss { position:absolute; z-index:4; top:16px; right:17px; width:36px; height:36px; border:1px solid #3c596b; border-radius:50%; background:#102b42; color:#fff; cursor:pointer; font-size:24px; }
 .nexora-update-stage { position:relative; isolation:isolate; padding:60px 42px 45px; overflow:hidden; background:radial-gradient(circle at 50% 38%,#124d63,#071c31 48%,#051020); min-height:575px; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-end; }
 .nexora-update-mesh { position:absolute; z-index:-1; inset:0; background-image:linear-gradient(rgba(104,232,231,.065) 1px,transparent 1px),linear-gradient(90deg,rgba(104,232,231,.065) 1px,transparent 1px); background-size:36px 36px; mask-image:linear-gradient(to bottom,#000,transparent 85%); transform:perspective(400px) rotateX(13deg) scale(1.2); }
@@ -70,7 +85,7 @@
 @keyframes nexora-orbit { to { transform:rotate(360deg); } }
 @keyframes nexora-feature-in { from { opacity:0; transform:translateY(9px); } to { opacity:1; transform:translateY(0); } }
 @media(max-width:820px) { .nexora-update-modal { grid-template-columns:1fr; } .nexora-update-stage { min-height:370px; padding:175px 25px 25px; } .nexora-update-radar { width:92px; height:92px; top:30%; } .nexora-update-radar span { font-size:57px; } .nexora-update-details { padding:28px 25px; min-height:400px; } }
-@media(prefers-reduced-motion:reduce) { .nexora-release-notice,.nexora-release-icon,.nexora-update-backdrop,.nexora-update-radar i,.nexora-update-feature { animation:none!important; } .nexora-update-loader span { transition:none; } }
+@media(prefers-reduced-motion:reduce) { .nexora-release-notice,.nexora-release-icon,.nexora-update-backdrop,.nexora-update-radar i,.nexora-update-feature,.nexora-cinematic-intro,.nexora-cinematic-rays,.nexora-cinematic-symbol,.nexora-cinematic-symbol i { animation:none!important; } .nexora-update-loader span,.nexora-cinematic-track span { transition:none; } }
 @media (max-width: 880px) {
   .nexora-release-notice { flex-wrap: wrap; margin: 12px; padding: 15px; }
   .nexora-release-copy { flex-basis: calc(100% - 105px); }

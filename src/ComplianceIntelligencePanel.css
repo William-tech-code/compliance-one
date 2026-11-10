@@ -1,0 +1,39 @@
+.nexora-intel-panel{margin:16px 0;padding:clamp(18px,2.4vw,32px);border:1px solid rgba(103,169,196,.37);border-radius:24px;background:linear-gradient(145deg,#09192a,#0b1b30 65%,#0b2636);color:#eaf7ff;box-shadow:0 22px 70px rgba(0,0,0,.12);font-family:system-ui,-apple-system,sans-serif}
+.nexora-intel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:22px;margin-bottom:24px}
+.nexora-intel-eyebrow{display:block;color:#71e8db;font-size:10px;font-weight:800;letter-spacing:.19em}
+.nexora-intel-head h2{font-size:clamp(24px,2.5vw,34px);margin:10px 0 8px;letter-spacing:-.035em}
+.nexora-intel-head p{color:#a2bbcf;font-size:13px;margin:0;line-height:1.7}
+.nexora-intel-status{display:inline-flex;white-space:nowrap;align-items:center;background:#0c3541;color:#8cebdc;border:1px solid #2b7479;border-radius:99px;padding:9px 13px;font-size:11px;font-weight:800}
+.nexora-intel-alert{display:flex;gap:8px;flex-direction:column;background:#132b3e;border:1px solid #37546b;border-left:3px solid #64d4d6;border-radius:12px;padding:16px 18px;margin-bottom:24px}
+.nexora-intel-alert b{font-size:13px;color:#e8fbff}
+.nexora-intel-alert span{font-size:12px;color:#a7c4d5;line-height:1.6}
+.nexora-intel-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+.nexora-intel-card{min-width:0;background:linear-gradient(150deg,#11283e,#0b2032);border:1px solid #29465e;border-radius:18px;padding:23px}
+.nexora-intel-card-title{display:flex;gap:13px;align-items:center}
+.nexora-intel-icon{display:grid;place-items:center;width:45px;height:45px;flex:none;border-radius:14px;background:linear-gradient(130deg,#145b6a,#21527b);color:#85f7e6;font-size:22px}
+.nexora-intel-card-title small{font-size:10px;letter-spacing:.14em;color:#64c9d5;font-weight:800}
+.nexora-intel-card-title h3{font-size:18px;margin:5px 0 0;color:#f1fbff}
+.nexora-intel-card>p{font-size:12px;line-height:1.75;color:#a9c4d5;min-height:65px}
+.nexora-intel-card label{display:block;margin:18px 0 8px;color:#b6d4df;font-size:12px;font-weight:700}
+.nexora-intel-panel textarea{box-sizing:border-box;display:block;width:100%;min-height:128px;resize:vertical;border:1px solid #3d6076;border-radius:12px;background:#071827;color:#f3feff;padding:14px 15px;font:inherit;font-size:13px;line-height:1.6;outline:none}
+.nexora-intel-panel textarea:focus{border-color:#73dfe0;box-shadow:0 0 0 3px rgba(93,222,218,.15)}
+.nexora-intel-panel textarea::placeholder{color:#7796a9}
+.nexora-intel-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
+.nexora-intel-actions>span{color:#8aa8ba;font-size:11px}
+.nexora-intel-panel button{font:700 12px/1.3 system-ui,-apple-system,sans-serif;border-radius:10px;padding:11px 15px;cursor:pointer;transition:transform .16s,background .16s}
+.nexora-intel-panel button:not(:disabled):hover{transform:translateY(-1px)}
+.nexora-intel-primary{border:1px solid #73e9da;background:linear-gradient(115deg,#70e7d7,#a7fff0);color:#07313b}
+.nexora-intel-secondary{border:1px solid #466b7c;background:#18364b;color:#d6eef6}
+.nexora-intel-panel button:disabled{opacity:.42;cursor:not-allowed;filter:grayscale(.25)}
+.nexora-intel-monitor{min-height:122px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;margin-top:18px;padding:17px 21px;border-radius:13px;background:#071a2b;border:1px solid #284358}
+.nexora-intel-monitor span{font-size:10px;letter-spacing:.15em;color:#78b7c4;font-weight:800}
+.nexora-intel-monitor strong{font-size:35px;line-height:1.2;margin:5px 0;color:#dcfff5}
+.nexora-intel-monitor small{font-size:11px;color:#8eaabd}
+.nexora-intel-result{white-space:pre-wrap;margin-top:17px;padding:15px;border-radius:12px;border:1px solid #376879;background:#0b3643;color:#d8f9f2;font-size:13px}
+.nexora-intel-sources{margin-top:18px;padding:20px;background:#10263b;border:1px solid #315068;border-radius:16px}
+.nexora-intel-sources h3{margin:0 0 12px}.nexora-intel-sources article{padding:14px 0;border-top:1px solid #2f4b60;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.nexora-intel-sources article>div:first-child{display:flex;flex-direction:column;gap:5px}.nexora-intel-sources article span{font-size:11px;color:#a4bbc9}.nexora-intel-sources a{color:#88e7d8;font-size:12px}
+.nexora-intel-review{width:100%;display:flex;gap:10px;flex-wrap:wrap}.nexora-intel-review textarea{flex:1 0 100%;min-height:80px}.nexora-intel-review button{border:1px solid #3e7880;background:#164454;color:#d6f9f3}
+.nexora-intel-error{padding:12px 15px;border:1px solid #a65b5d;border-radius:10px;background:#3d222f;color:#ffd8d8}
+@media(max-width:970px){.nexora-intel-grid{grid-template-columns:1fr}.nexora-intel-card>p{min-height:0}}
+@media(max-width:630px){.nexora-intel-head{flex-direction:column}.nexora-intel-card{padding:17px}.nexora-intel-actions{justify-content:flex-start}}
