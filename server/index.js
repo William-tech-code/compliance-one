@@ -354,6 +354,10 @@ app.post("/api/evidence/upload",authenticate,requirePermission("record:write"),(
  const {actionId,name,mime,base64}=req.body||{};
  if(typeof actionId!=="string"||!actionId.trim()||typeof name!=="string"||!name.trim()||name.length>200||typeof base64!=="string"||base64.length>7_000_000)return res.status(400).json({error:"INVALID_UPLOAD"});
  if(!/^[A-Za-z0-9+/]*={0,2}$/.test(base64))return res.status(400).json({error:"INVALID_BASE64"});
+ const actionExists=db.prepare("SELECT payload FROM records WHERE company_id=? AND type='workspace'").all(req.user.companyId).some(row=>{
+  try{return (JSON.parse(row.payload).correctiveActions||[]).some(a=>a.id===actionId&&!["CONCLUÍDA","CANCELADA"].includes(a.status))}catch{return false}
+ });
+ if(!actionExists)return res.status(404).json({error:"ACTION_NOT_FOUND"});
  const bytes=Buffer.from(base64,"base64");
  if(!bytes.length||bytes.length>5*1024*1024)return res.status(413).json({error:"FILE_SIZE_LIMIT"});
  const digest="sha256:"+crypto.createHash("sha256").update(bytes).digest("hex");
