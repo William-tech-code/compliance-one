@@ -24,7 +24,7 @@ export default function CorrectiveActionsWorkspace({workspace,setWorkspace,revie
  const evidence=async(action,file)=>{
   if(!file)return;
   try{
-   if(file.size>10*1024*1024)throw Error("Limite de 10 MB por arquivo");
+   if(file.size>5*1024*1024)throw Error("Limite de 5 MB por arquivo");
    if(!reviewer)throw Error("Sessão autenticada obrigatória");
    const base64=await new Promise((resolve,reject)=>{
     const reader=new FileReader();
@@ -42,7 +42,7 @@ export default function CorrectiveActionsWorkspace({workspace,setWorkspace,revie
   <h2>Gestão de ações corretivas e evidências</h2>
   <p>Fluxo auditável: aberta → execução → validação independente → concluída.</p>
   <p>{summary.total} ações · {summary.overdue} vencidas · {summary.pendingValidation} aguardando validação · {summary.completed} concluídas</p>
-  <p><strong>Atenção:</strong> o arquivo não é enviado nem armazenado; somente nome e SHA-256 ficam registrados. Guarde o original em armazenamento seguro.</p>
+  <p><strong>Atenção:</strong> o arquivo original é enviado ao servidor autenticado e armazenado em disco persistente após a configuração do Render. O registro inclui SHA-256.</p>
   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
    <span>Operador autenticado: {reviewer||"Conecte a API para operações auditáveis"}</span>
    <select aria-label="Risco vinculado" value={riskId} onChange={e=>setRiskId(e.target.value)}><option value="">Selecionar risco</option>{(workspace.risks||[]).map(r=><option key={r.id} value={r.id}>{r.title||r.id}</option>)}</select>
@@ -58,7 +58,7 @@ export default function CorrectiveActionsWorkspace({workspace,setWorkspace,revie
     {a.status==="ABERTA"&&<button onClick={()=>transition(a,"EM EXECUÇÃO")}>Iniciar execução</button>}
     {a.status==="EM EXECUÇÃO"&&<button onClick={()=>transition(a,"EM VALIDAÇÃO")}>Enviar para validação</button>}
     {a.status==="EM VALIDAÇÃO"&&<><button disabled={!reviewer} onClick={()=>transition(a,"CONCLUÍDA")}>Aprovar conclusão</button><button onClick={()=>transition(a,"EM EXECUÇÃO")}>Devolver para correção</button></>}
-    {!["CONCLUÍDA","CANCELADA"].includes(a.status)&&<label>Registrar hash da evidência <input type="file" onChange={e=>e.target.files?.[0]&&evidence(a,e.target.files[0])}/></label>}
+    {!["CONCLUÍDA","CANCELADA"].includes(a.status)&&<label>Enviar arquivo original de evidência <input type="file" onChange={e=>e.target.files?.[0]&&evidence(a,e.target.files[0])}/></label>}
    </div>
    {a.evidences.map(e=><p key={e.id}><small>{e.name} · {e.hash} · registrado por {e.uploadedBy}</small></p>)}
    <details><summary>Trilha de auditoria</summary>{a.events.map((e,i)=><p key={i}>{e.at} · {e.actor} · {e.type}</p>)}</details>
