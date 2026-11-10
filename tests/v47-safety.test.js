@@ -37,3 +37,14 @@ test("regulatory monitoring requires review when a source changes", () => {
   assert.equal(compareRegulationSnapshot(after, after), "UNCHANGED");
   assert.equal(compareRegulationSnapshot(before, after), "CONTENT_CHANGED_REVIEW_REQUIRED");
 });
+
+test("regulatory reviews do not carry across source revisions or other organizations", async () => {
+  const {resolveRegulatoryReview,regulatoryReviewKey}=await import("../server/regulatoryReview.js");
+  const a={source_id:"norma-1",digest:"v1",status:"CONTENT_CHANGED_REVIEW_REQUIRED"};
+  const b={source_id:"norma-1",digest:"v2",status:"CONTENT_CHANGED_REVIEW_REQUIRED"};
+  const reviews=[{source_id:"norma-1",digest:"v1",decision:"REVIEWED"}];
+  assert.equal(resolveRegulatoryReview(a,reviews).status,"REVIEWED");
+  assert.equal(resolveRegulatoryReview(b,reviews).status,"CONTENT_CHANGED_REVIEW_REQUIRED");
+  assert.equal(resolveRegulatoryReview(a,[]).status,"CONTENT_CHANGED_REVIEW_REQUIRED");
+  assert.notEqual(regulatoryReviewKey("empresa-a","norma-1","v1"),regulatoryReviewKey("empresa-b","norma-1","v1"));
+});
