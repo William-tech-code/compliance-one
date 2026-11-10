@@ -1,3 +1,4 @@
+import {complianceOperationsSummary} from "./complianceOperations";
 import {generateComplianceBriefing} from "./complianceBriefing";
 import {regulatoryIntelligenceSummary,createRegulatoryReview} from "./regulatoryIntelligence";
 import { recordDiagnosticAnswer, validateDiagnosticLinks, diagnosticProgress, executiveDiagnosticSummary } from "./diagnosticGovernance";
@@ -852,6 +853,7 @@ function AppCore() {
     return Math.round(18 + (score / Math.max(1,vals.length))*82);
   },[s.answers,questions]);
 
+  const operationalActions=useMemo(()=>complianceOperationsSummary((s.correctiveActions||[])),[s.correctiveActions]);
   const stats = useMemo(()=>{
     const out={total:s.risks.length,Crítico:0,Alto:0,Médio:0,Baixo:0};
     s.risks.forEach(r=>out[r.level||RISK_LEVEL(r.p,r.i)]++);
@@ -1243,6 +1245,11 @@ function attach(files,owner,ownerId) {
             <button disabled={v.version===versionHistory.currentVersion || apiSyncing || apiSyncError} onClick={()=>restoreRemoteVersion(v.version)}>Restaurar como nova versão</button>
           </div>)}
         </div>
+      </section>}
+      {page==="dashboard" && <section style={{margin:"12px 16px",padding:14,border:"1px solid #526b81",borderRadius:12}}>
+        <strong>Governança operacional · ações corretivas verificadas</strong>
+        <p>{operationalActions.total} ações registradas no novo fluxo · {operationalActions.overdue} vencidas · {operationalActions.pendingValidation} aguardando validação independente · {operationalActions.completed} concluídas</p>
+        <small>Indicadores das ações do fluxo de evidências; não incluem ações legadas até sua migração.</small>
       </section>}
       <div className="content">
         <div className="steps">{steps.map(([k,l],i)=><button key={k} className={`${page===k?"current ":""}${s.workflow[k]?"done":""}`} onClick={()=>go(k)}><b>{s.workflow[k]?"✓":i+1}</b><span>{l}</span></button>)}</div>
