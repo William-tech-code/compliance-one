@@ -59,5 +59,14 @@ test("tenant isolation and workspace persistence across server restart", {timeou
   assert.equal(restored.data.records[0].id,recordId);
   assert.equal(restored.data.records[0].version,1);
   assert.equal(restored.data.records[0].payload.answers.Q1,"Não");
+  // Token remains signed but account revocation must take effect immediately.
+  const revokeDb=new Database(dbPath);
+  revokeDb.prepare("UPDATE users SET active=0 WHERE id=?").run(init.data.user.id);
+  revokeDb.close();
+  const revoked=await call("/records/workspace","GET",undefined,tokenA);
+  assert.equal(revoked.status,401);
+  assert.equal(revoked.data.error,"SESSION_REVOKED");
+  const otherStillWorks=await call("/records/workspace","GET",undefined,tokenB);
+  assert.equal(otherStillWorks.status,200);
  }finally{await stop();rmSync(dir,{recursive:true,force:true})}
 });
