@@ -110,7 +110,18 @@ function authenticate(req, res, next) {
   const token = authorization.substring(7);
 
   try {
-    req.user = jwt.verify(token, JWT_SECRET);
+    const claims = jwt.verify(token, JWT_SECRET);
+    const current = db.prepare("SELECT id, company_id, name, email, role, active FROM users WHERE id = ? AND company_id = ?").get(claims.sub, claims.companyId);
+    if (!current || current.active !== 1) {
+      return res.status(401).json({ error: "SESSION_REVOKED" });
+    }
+    req.user = {
+      sub: current.id,
+      companyId: current.company_id,
+      name: current.name,
+      email: current.email,
+      role: current.role
+    };
     next();
   } catch {
     return res.status(401).json({
