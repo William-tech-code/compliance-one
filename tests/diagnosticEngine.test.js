@@ -41,7 +41,10 @@ test("specialized legal reviews are linked to risks",()=>{
 test("framework recommendations preserve risk-to-action priority and traceability",()=>{
  const q=buildEnterpriseQuestions("Educação");
  const frameworks=[{id:"F-A",name:"Framework A",area:"Governança",tier:"Optional"},{id:"F-B",name:"Framework B",area:"Legal",tier:"Jurisdictional"}];
- const out=assessDiagnostic(q,{},library,riskLevel,frameworks);
+ const pending=assessDiagnostic(q,{},library,riskLevel,frameworks);
+ assert.equal(pending.risks.length,0);
+ const reviewed=frameworks.map(f=>({...f,applicabilityReviewed:true,gapConfirmed:true}));
+ const out=assessDiagnostic(q,{},library,riskLevel,reviewed);
  assert.equal(out.risks.length,2);assert.equal(out.actions.length,2);assert.equal(out.legal.length,2);
  for(let i=0;i<2;i++){
   assert.equal(out.actions[i].riskId,out.risks[i].id);
