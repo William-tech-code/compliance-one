@@ -127,13 +127,14 @@ export async function apiPost(path, data) {
   return parseResponse(response);
 }
 
-export async function apiPut(path, data) {
+export async function apiPut(path, data, version) {
   const token = localStorage.getItem("nexus_api_token");
 
   const response = await request(`${API_URL}${path}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
+      ...(Number.isSafeInteger(version) ? {"x-record-version":String(version)} : {}),
       ...(token
         ? {
             Authorization: `Bearer ${token}`,
