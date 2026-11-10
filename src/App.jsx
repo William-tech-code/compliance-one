@@ -744,9 +744,10 @@ function load() {
 function AppCore() {
   const [s,setS] = useState(load);
   const [showReleaseNotice,setShowReleaseNotice] = useState(()=>{
-    try { return localStorage.getItem("nexus-release-notice-45-1")!=="dismissed"; }
+    try { return localStorage.getItem("nexora-release-notice-45-2")!=="dismissed"; }
     catch { return true; }
   });
+  const [releaseOpen,setReleaseOpen] = useState(false);
   const [showEntry,setShowEntry] = useState(()=>{ try { return sessionStorage.getItem("nexus-entry-v119") !== "1"; } catch { return true; } });
   const [page,setPage] = useState("dashboard");
   const [busy,setBusy] = useState(null);
@@ -1233,15 +1234,16 @@ function attach(files,owner,ownerId) {
       {showReleaseNotice&&<section className="nexora-release-notice" role="status" aria-label="Novidades da versão">
         <div className="nexora-release-icon" aria-hidden="true">✦</div>
         <div className="nexora-release-copy">
-          <span className="nexora-release-eyebrow">ATUALIZAÇÃO DO COMPLIANCE ONE</span>
-          <strong>Mais estabilidade. Inteligência com rastreabilidade.</strong>
-          <p>Nova revisão da central regulatória e do assistente de prioridades. As recomendações exigem validação humana e não substituem parecer jurídico.</p>
+          <span className="nexora-release-eyebrow">✦ NEXORA UPDATE CENTER · NOVIDADES DISPONÍVEIS</span>
+          <strong>Uma nova experiência de governança está aqui.</strong>
+          <p>Conheça a apresentação interativa desta versão, as melhorias de segurança e a central inteligente de conformidade.</p>
         </div>
-        <button className="nexora-release-explore" onClick={()=>setPage("standards")}>Explorar novidades →</button>
-        <button className="nexora-release-close" aria-label="Dispensar aviso" onClick={()=>{setShowReleaseNotice(false);try{localStorage.setItem("nexus-release-notice-45-1","dismissed")}catch{}}}>×</button>
+        <button className="nexora-release-explore" onClick={()=>setReleaseOpen(true)}>Ver atualização <span aria-hidden="true">↗</span></button>
+        <button className="nexora-release-close" aria-label="Dispensar aviso" onClick={()=>{setShowReleaseNotice(false);try{localStorage.setItem("nexora-release-notice-45-2","dismissed")}catch{}}}>×</button>
       </section>}
       <header><div><small>NEXUS / INTELLIGENCE CENTER / {page.toUpperCase()}</small><strong>{nav.find(x=>x[0]===page)?.[2]||"Command Center"}</strong></div>
         <div className="top-actions">
+          <button className="nexora-update-bell" aria-label="Abrir central de novidades e atualizações" onClick={()=>setReleaseOpen(true)}>♧ <span>Novidades</span><i aria-hidden="true"/></button>
           <button onClick={()=>setModal("company")}>✎ Editar empresa</button>
           <button onClick={exportBackup}>↓ Backup</button>
           {apiUser && <button onClick={openVersionHistory}>◷ Histórico de versões</button>}
@@ -1253,6 +1255,7 @@ function attach(files,owner,ownerId) {
           <span>{apiUser?(apiSyncing?"● Sincronizando":apiSyncError?"⚠ Falha ao salvar na API":"● API conectada"):"● Modo local"}</span>
         </div>
       </header>
+      {releaseOpen&&<NexoraUpdateExperience onClose={()=>setReleaseOpen(false)} onExplore={(destination)=>{setReleaseOpen(false);setPage(destination)}}/>}
 
       {versionHistory && <section role="dialog" aria-label="Histórico de versões" style={{padding:20,margin:16,border:"1px solid #526b81",borderRadius:12,background:"#10253c",color:"#fff"}}>
         <h3>Histórico do diagnóstico · versão atual {versionHistory.currentVersion}</h3>
@@ -1307,6 +1310,51 @@ function attach(files,owner,ownerId) {
 function Panel({title,sub,children}){return <section className="panel"><div className="panel-head"><div><h2>{title}</h2><p>{sub}</p></div></div>{children}</section>}
 function Metric({title,value,sub,tone=""}){return <div className={"metric "+tone}><small>{title}</small><b>{value}</b><span>{sub}</span></div>}
 function Advance({title,text,onClick,disabled=false,label="Avançar →"}){return <div className="advance"><div><b>{title}</b><span>{text}</span></div><button className="primary" disabled={disabled} onClick={onClick}>{disabled?"Aguardando confirmação":label}</button></div>}
+
+function NexoraUpdateExperience({onClose,onExplore}){
+  const [phase,setPhase]=useState(0);
+  const [active,setActive]=useState(0);
+  const highlights=[
+    {icon:"◈",title:"Diagnóstico por setor",detail:"800 perguntas organizadas em 32 áreas, com critérios específicos para o segmento da organização.",page:"diagnostico",label:"Abrir diagnóstico"},
+    {icon:"◇",title:"Riscos rastreáveis",detail:"Planos de ação vinculados a riscos, responsáveis, evidências e prioridades verificáveis.",page:"riscos",label:"Explorar riscos"},
+    {icon:"◎",title:"Governança e evidências",detail:"Revisão independente, trilhas de auditoria, preservação das evidências e isolamento entre organizações.",page:"dashboard",label:"Ir ao painel"},
+    {icon:"✦",title:"Inteligência regulatória",detail:"Referências oficiais para revisão humana; sem alegações de conformidade automática ou parecer jurídico substitutivo.",page:"standards",label:"Ver frameworks"}
+  ];
+  useEffect(()=>{
+    const previous=document.body.style.overflow;
+    document.body.style.overflow="hidden";
+    const timer=setTimeout(()=>setPhase(1),420);
+    const ready=setTimeout(()=>setPhase(2),1150);
+    const key=(event)=>{if(event.key==="Escape")onClose()};
+    window.addEventListener("keydown",key);
+    return ()=>{clearTimeout(timer);clearTimeout(ready);document.body.style.overflow=previous;window.removeEventListener("keydown",key)};
+  },[onClose]);
+  const feature=highlights[active];
+  return <div className="nexora-update-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)onClose()}}>
+    <section className="nexora-update-modal" role="dialog" aria-modal="true" aria-label="Apresentação das novidades do Compliance One">
+      <button className="nexora-update-dismiss" aria-label="Fechar novidades" onClick={onClose}>×</button>
+      <div className="nexora-update-stage">
+        <div className="nexora-update-mesh" aria-hidden="true"/>
+        <div className="nexora-update-radar" aria-hidden="true"><span>N</span><i/><i/><i/></div>
+        <span className="nexora-update-tag">NEXORA / COMPLIANCE ONE · ENTERPRISE</span>
+        <h2>O próximo nível da<br/><em>inteligência em conformidade.</em></h2>
+        <p>Uma experiência mais clara para transformar diagnósticos em decisões responsáveis.</p>
+        <div className="nexora-update-loader" aria-label={phase===2?"Apresentação pronta":"Preparando apresentação"}>
+          <span style={{width:phase===0?"24%":phase===1?"73%":"100%"}}/>
+        </div>
+        <small>{phase===2?"✓ NOVIDADES PRONTAS PARA EXPLORAR":"PREPARANDO APRESENTAÇÃO DAS NOVIDADES..."}</small>
+      </div>
+      <div className="nexora-update-details">
+        <div className="nexora-update-overline">RELEASE EXPERIENCE <b>01 / 04</b></div>
+        <h3>Descubra o que evoluiu.</h3>
+        <div className="nexora-update-tabs" role="tablist" aria-label="Áreas da atualização">{highlights.map((item,index)=><button key={item.title} role="tab" aria-selected={active===index} className={active===index?"selected":""} onClick={()=>setActive(index)}>{String(index+1).padStart(2,"0")}</button>)}</div>
+        <div className="nexora-update-feature" key={feature.title}><div className="nexora-update-feature-icon">{feature.icon}</div><strong>{feature.title}</strong><p>{feature.detail}</p></div>
+        <div className="nexora-update-foot"><button onClick={()=>onExplore(feature.page)}>{feature.label} ↗</button><button className="nexora-update-later" onClick={onClose}>Continuar no painel</button></div>
+        <p className="nexora-update-disclaimer">Esta é uma apresentação das funcionalidades da versão publicada. Nenhuma instalação ou alteração de dados ocorre ao visualizar as novidades.</p>
+      </div>
+    </section>
+  </div>;
+}
 
 function FirstAccess({onStart,onDemo}){
   const [boot,setBoot]=useState(false),[stage,setStage]=useState(0);
