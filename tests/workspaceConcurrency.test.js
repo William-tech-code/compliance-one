@@ -47,6 +47,16 @@ test("two sessions cannot overwrite a newer workspace version", {timeout:30000},
   const current=await call("/records/workspace","GET",undefined,token);
   assert.equal(current.data.records[0].version,2);
   assert.equal(current.data.records[0].payload.answers.A,"Sim");
+  const history=await call("/records/"+id+"/versions","GET",undefined,token);
+  assert.equal(history.status,200);
+  assert.deepEqual(history.data.versions.map(v=>v.version),[2,1]);
+  const old=await call("/records/"+id+"/versions/1","GET",undefined,token);
+  assert.equal(old.status,200);
+  assert.equal(old.data.payload.answers.A,"Não");
+  const newest=await call("/records/"+id+"/versions/2","GET",undefined,token);
+  assert.equal(newest.data.payload.answers.A,"Sim");
+  const rejectedHistory=await call("/records/"+id+"/versions/3","GET",undefined,token);
+  assert.equal(rejectedHistory.status,404);
  }finally{
   child.kill("SIGTERM");
   rmSync(dir,{recursive:true,force:true});
