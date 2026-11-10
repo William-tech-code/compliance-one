@@ -1,0 +1,41 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {spawn} from "node:child_process";
+import {mkdtempSync,rmSync,readFileSync,existsSync} from "node:fs";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
+import {setTimeout as delay} from "node:timers/promises";
+test("authenticated evidence upload, download, mismatch rejection and persistence after restart",{timeout:45000},async()=>{
+ const dir=mkdtempSync(join(tmpdir(),"compliance-evidence-e2e-"));
+ const port=24000+Math.floor(Math.random()*14000),base="http://127.0.0.1:"+port+"/api";
+ const env={...process.env,PORT:String(port),DATABASE_PATH:join(dir,"test.sqlite"),EVIDENCE_STORAGE_PATH:join(dir,"evidence"),JWT_SECRET:"integration-test-only-secret-longer-than-32",BOOTSTRAP_SECRET:"test-bootstrap-secret",NODE_ENV:"test",REGULATORY_MONITOR_ENABLED:"false"};
+ let child,logs="";
+ const start=async()=>{child=spawn(process.execPath,["server/index.js"],{env,stdio:["ignore","pipe","pipe"]});child.stderr.on("data",b=>logs+=b.toString());for(let i=0;i<100;i++){if(child.exitCode!==null)throw Error("Server exited "+logs);try{if((await fetch(base+"/health")).ok)return}catch{}await delay(100)}throw Error("Server unavailable "+logs)};
+ const stop=async()=>{if(!child)return;const c=child;child=null;c.kill("SIGTERM");for(let i=0;i<30&&c.exitCode===null;i++)await delay(100);if(c.exitCode===null)c.kill("SIGKILL")};
+ const call=async(p,method="GET",body,token,version,headers={})=>{const r=await fetch(base+p,{method,headers:{"content-type":"application/json",...(token?{authorization:"Bearer "+token}:{}),...(version?{"x-record-version":String(version)}:{}),...headers},...(body===undefined?{}:{body:JSON.stringify(body)})});return {status:r.status,data:await r.json()}};
+ try{
+  await start();
+  const init=await call("/bootstrap","POST",{companyName:"E2E",adminName:"Admin",email:"e2e@example.test",password:"Password12345"},undefined,undefined,{"x-bootstrap-secret":env.BOOTSTRAP_SECRET});
+  assert.equal(init.status,201,JSON.stringify(init.data));const token=init.data.token;
+  const action={id:"action-e2e",riskId:"risk-e2e",title:"Verificar controle",owner:"owner@example.test",status:"ABERTA",evidenceRequired:true,evidences:[],events:[{type:"CRIADA",actor:"e2e@example.test",at:new Date().toISOString()}],verifiedBy:null};
+  const created=await call("/records/workspace","POST",{correctiveActions:[action]},token);assert.equal(created.status,201,JSON.stringify(created.data));
+  const file=Buffer.from("NEXORA E2E evidence content "+Date.now());
+  const uploaded=await call("/evidence/upload","POST",{actionId:action.id,name:"sample.txt",mime:"text/plain",base64:file.toString("base64")},token);
+  assert.equal(uploaded.status,201,JSON.stringify(uploaded.data));
+  const evidence={id:uploaded.data.id,name:"sample.txt",hash:uploaded.data.hash,source:"original",uploadedAt:uploaded.data.uploadedAt,uploadedBy:"e2e@example.test"};
+  const forged=await call("/records/"+created.data.id,"PUT",{correctiveActions:[{...action,evidences:[{...evidence,hash:"sha256:"+"0".repeat(64)}],events:[...action.events,{type:"EVIDÊNCIA_ANEXADA",actor:"e2e@example.test",at:new Date().toISOString(),reference:evidence.id}]}]},token,1);
+  assert.equal(forged.status,422,JSON.stringify(forged.data));
+  const updated={...action,evidences:[evidence],events:[...action.events,{type:"EVIDÊNCIA_ANEXADA",actor:"e2e@example.test",at:new Date().toISOString(),reference:evidence.id}]};
+  const saved=await call("/records/"+created.data.id,"PUT",{correctiveActions:[updated]},token,1);
+  assert.equal(saved.status,200,JSON.stringify(saved.data));
+  const unauth=await fetch(base+"/evidence/"+evidence.id+"/download");assert.equal(unauth.status,401);
+  let response=await fetch(base+"/evidence/"+evidence.id+"/download",{headers:{authorization:"Bearer "+token}});
+  assert.equal(response.status,200);assert.deepEqual(Buffer.from(await response.arrayBuffer()),file);
+  await stop();await start();
+  response=await fetch(base+"/evidence/"+evidence.id+"/download",{headers:{authorization:"Bearer "+token}});
+  assert.equal(response.status,200);assert.deepEqual(Buffer.from(await response.arrayBuffer()),file);
+  const current=await call("/records/workspace","GET",undefined,token);
+  assert.equal(current.data.records[0].payload.correctiveActions[0].evidences[0].id,evidence.id);
+  assert.ok(existsSync(join(dir,"evidence")));
+ }finally{await stop();rmSync(dir,{recursive:true,force:true})}
+});
