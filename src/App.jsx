@@ -1,3 +1,4 @@
+import ComplianceIntelligencePanel from "./ComplianceIntelligencePanel";
 import CorrectiveActionsWorkspace from "./CorrectiveActionsWorkspace";
 import {complianceOperationsSummary} from "./complianceOperations";
 import {generateComplianceBriefing} from "./complianceBriefing";
@@ -1265,7 +1266,7 @@ function attach(files,owner,ownerId) {
         {page==="evidencias" && <Evidence s={s} attach={attach} finish={finish}/>}
         {page==="juridico" && <AutoLegal s={s} confirm={confirmLegal} finish={finish}/>}
         {page==="matriz-filosofica" && <PhilosophyMatrix s={s} openDocument={d=>setDetail({type:"document",item:d})} />}
-        {page==="documentos" && <DocumentCenter s={s} generate={generateDocuments} openDocument={d=>setDetail({type:"document",item:d})} />}{page==="standards" && <><RegulatoryReviewPanel s={s} setS={setS} notify={notify} questions={questions} reviewer={apiUser?.name||apiUser?.email||""}/><StandardsCenter s={s} analysis={frameworkAnalysis()} notify={notify}/></>}{page==="producao" && <ProductionCenter s={s} setS={setS} notify={notify}/>} 
+        {page==="documentos" && <DocumentCenter s={s} generate={generateDocuments} openDocument={d=>setDetail({type:"document",item:d})} />}{page==="standards" && <><ComplianceIntelligencePanel workspace={s} authenticated={!!apiUser} notify={notify}/><RegulatoryReviewPanel s={s} setS={setS} notify={notify} questions={questions} reviewer={apiUser?.name||apiUser?.email||""}/><StandardsCenter s={s} analysis={frameworkAnalysis()} notify={notify}/></>}{page==="producao" && <ProductionCenter s={s} setS={setS} notify={notify}/>} 
         {page==="relatorio" && <Report s={s} maturity={maturity} progress={progress} print={printReport} setS={setS} framework={frameworkAnalysis()}/>}
         {page==="denuncias" && <Denunciations s={s} open={()=>setModal("den")} select={x=>setDetail({type:"den",item:x})}/>}
       </div>
