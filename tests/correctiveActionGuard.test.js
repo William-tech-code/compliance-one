@@ -17,5 +17,5 @@ test("requires independent verifier and evidence to complete action",()=>{
  assert.throws(()=>validateCorrectiveActionMutation({correctiveActions:[inReview]},{correctiveActions:[noEvidence]},actor),/EVIDENCE/);
  const good={...noEvidence,evidences:[{hash:"sha256:"+"a".repeat(64),uploadedBy:actor}]};
  assert.doesNotThrow(()=>validateCorrectiveActionMutation({correctiveActions:[inReview]},{correctiveActions:[good]},actor));
- assert.throws(()=>validateCorrectiveActionMutation({correctiveActions:[{...inReview,owner:actor}]},{correctiveActions:[good]},actor),/INDEPENDENT/);
+ assert.throws(()=>validateCorrectiveActionMutation({correctiveActions:[{...inReview,owner:actor}]},{correctiveActions:[{...good,owner:actor}]},actor),/INDEPENDENT/);
 });
