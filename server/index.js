@@ -1,4 +1,4 @@
-import {verifyEvidenceFile} from "./evidenceIntegrity.js";
+import {verifyEvidenceFile,isEvidencePathInsideTenant} from "./evidenceIntegrity.js";
 import {resolveRegulatoryReview} from "./regulatoryReview.js";
 import {validateEvidenceReferences} from "./evidenceGuard.js";
 import {validateGovernanceMutation} from "./governanceGuard.js";
@@ -406,7 +406,7 @@ app.get("/api/evidence/:id/download",authenticate,requirePermission("record:read
  const item=db.prepare("SELECT * FROM evidence_files WHERE id=? AND company_id=?").get(req.params.id,req.user.companyId);
  if(!item)return res.status(404).json({error:"NOT_FOUND"});
  if(!fs.existsSync(item.stored_path))return res.status(503).json({error:"EVIDENCE_MISSING"});
- if(!verifyEvidenceFile(item.stored_path,item.sha256,item.size)){
+ if(!isEvidencePathInsideTenant(item.stored_path,evidenceRoot,req.user.companyId)||!verifyEvidenceFile(item.stored_path,item.sha256,item.size)){
   audit(req,"EVIDENCE_INTEGRITY_FAILED","evidence",item.id,{actionId:item.action_id});
   return res.status(409).json({error:"EVIDENCE_INTEGRITY_FAILED"});
  }
