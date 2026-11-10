@@ -68,6 +68,18 @@ const SECTOR_TOPICS = {
 "Agronegócio":["rastreabilidade de produção agropecuária","uso e armazenamento de insumos","segurança de máquinas agrícolas","licenciamento e gestão ambiental rural","bem-estar animal quando aplicável","segurança alimentar e qualidade","armazenagem e transporte de safra","gestão de mão de obra rural","controle de água e recursos naturais","contratos e cadeia de fornecedores"],
 "Energia":["integridade de ativos energéticos","segurança elétrica e bloqueios","licenças e autorizações setoriais","manutenção de instalações críticas","continuidade do fornecimento","gestão de emergências operacionais","controle ambiental de operações","segurança de prestadores de serviço","monitoramento de perdas e medições","requisitos de fiscalização setorial"]
 };
+SECTOR_TOPICS["Cartórios / Tabelionatos de Notas"]=[
+"identificação das partes e verificação de capacidade e representação",
+"prevenção à lavagem de dinheiro e comunicação de operações suspeitas",
+"lavratura e conferência de escrituras públicas",
+"autenticação, reconhecimento de firmas e conferência documental",
+"guarda e integridade de livros, atos e arquivos eletrônicos",
+"proteção de dados pessoais e sigilo notarial",
+"atendimento, acessibilidade e prevenção a fraudes contra vulneráveis",
+"emolumentos, repasses e transparência de cobranças",
+"atos eletrônicos, certificados digitais e segurança do e-Notariado",
+"fiscalização correicional, normas de serviço e continuidade da serventia"
+];
 SECTOR_TOPICS["Serviços"]=["contratos e níveis de serviço","qualidade da prestação","atendimento ao cliente","gestão de equipes externas","gestão de terceiros","continuidade dos serviços","licenciamento profissional","faturamento e cobrança","proteção de dados de clientes","tratamento de reclamações"];
 const RISK_DIMENSION_KEYS = {
  responsável:"governance",política:"governance",inventário:"controls",riscos:"controls",
