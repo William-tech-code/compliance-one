@@ -1,3 +1,4 @@
+import {regulatoryIntelligenceSummary,createRegulatoryReview} from "./regulatoryIntelligence";
 import { recordDiagnosticAnswer, validateDiagnosticLinks, diagnosticProgress, executiveDiagnosticSummary } from "./diagnosticGovernance";
 import { assessDiagnostic } from "./diagnosticEngine";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -1254,7 +1255,7 @@ function attach(files,owner,ownerId) {
         {page==="evidencias" && <Evidence s={s} attach={attach} finish={finish}/>}
         {page==="juridico" && <AutoLegal s={s} confirm={confirmLegal} finish={finish}/>}
         {page==="matriz-filosofica" && <PhilosophyMatrix s={s} openDocument={d=>setDetail({type:"document",item:d})} />}
-        {page==="documentos" && <DocumentCenter s={s} generate={generateDocuments} openDocument={d=>setDetail({type:"document",item:d})} />}{page==="standards" && <StandardsCenter s={s} analysis={frameworkAnalysis()} notify={notify}/>}{page==="producao" && <ProductionCenter s={s} setS={setS} notify={notify}/>} 
+        {page==="documentos" && <DocumentCenter s={s} generate={generateDocuments} openDocument={d=>setDetail({type:"document",item:d})} />}{page==="standards" && <><RegulatoryReviewPanel s={s} setS={setS} notify={notify} questions={questions} reviewer={apiUser?.name||apiUser?.email||""}/><StandardsCenter s={s} analysis={frameworkAnalysis()} notify={notify}/></>}{page==="producao" && <ProductionCenter s={s} setS={setS} notify={notify}/>} 
         {page==="relatorio" && <Report s={s} maturity={maturity} progress={progress} print={printReport} setS={setS} framework={frameworkAnalysis()}/>}
         {page==="denuncias" && <Denunciations s={s} open={()=>setModal("den")} select={x=>setDetail({type:"den",item:x})}/>}
       </div>
@@ -1717,3 +1718,37 @@ return <Modal title={x.protocol} close={close}><div className="detail"><h2>{x.ca
 function Modal({title,close,children}){return <div className="modal-bg" onMouseDown={close}><div className="modal" onMouseDown={e=>e.stopPropagation()}><header><h2>{title}</h2><button onClick={close}>×</button></header>{children}</div></div>}
 
 class NexusErrorBoundary extends React.Component { constructor(p){super(p);this.state={error:null}} static getDerivedStateFromError(error){return {error}} render(){if(this.state.error)return <div style={{minHeight:'100vh',background:'#06101d',color:'#eaf3ff',padding:'40px',fontFamily:'system-ui'}}><h1>NEXUS encontrou um erro de execução</h1><p style={{color:'#8fa6bf'}}>A aplicação não ficou em branco silenciosamente. O erro abaixo identifica o ponto que precisa ser corrigido.</p><pre style={{whiteSpace:'pre-wrap',background:'#0b192a',padding:'18px',borderRadius:'12px',color:'#ff9e9e'}}>{String(this.state.error?.stack||this.state.error)}</pre><button onClick={()=>location.reload()} style={{padding:'12px 18px',borderRadius:'8px',border:0}}>Recarregar</button></div>;return this.props.children}} function App(){return <NexusErrorBoundary><AppCore/></NexusErrorBoundary>} export default App;
+
+function RegulatoryReviewPanel({s,setS,notify,questions,reviewer}){
+ const [selected,setSelected]=useState("");
+ const [decision,setDecision]=useState("EM ANÁLISE");
+ const [notes,setNotes]=useState("");
+ const summary=regulatoryIntelligenceSummary(s.company.segment,questions,s.regulatoryReviews||[]);
+ const entry=summary.entries.find(x=>x.id===selected);
+ const save=()=>{
+  if(!entry)return;
+  try{
+   const review=createRegulatoryReview(entry,reviewer,decision,notes);
+   setS(prev=>({...prev,regulatoryReviews:[...(prev.regulatoryReviews||[]).filter(r=>r.id!==review.id),review],history:[...(prev.history||[]),{id:uid("LOG"),text:"Revisão regulatória registrada: "+review.reference+" ("+review.decision+")",date:now()}]}));
+   notify("Revisão regulatória registrada com responsável e fonte.");
+  }catch(err){notify(err.message)}
+ };
+ return <section style={{padding:20,margin:"16px 0",border:"1px solid #526b81",borderRadius:12}}>
+  <h2>Inteligência regulatória · fontes oficiais</h2>
+  <p>Catálogo de referência {summary.catalogVersion}. Não há consulta automática a diários oficiais nesta versão. Vigência, alterações, aplicabilidade e obrigações devem ser confirmadas por responsável jurídico.</p>
+  <p>{summary.entries.length} referências potencialmente relevantes · {summary.reviewed} revisadas · {summary.pending} pendentes</p>
+  <div style={{display:"grid",gap:8}}>{summary.entries.map(r=><div key={r.id} style={{padding:10,border:"1px solid #526b81",borderRadius:8}}>
+   <strong>{r.reference} — {r.name}</strong>
+   <p>{r.review?.decision||r.status} · {r.currency}</p>
+   <p>{r.review?.notes||r.review===null&&r.review}</p>
+   <a href={r.url} target="_blank" rel="noopener noreferrer">Consultar fonte oficial</a>
+   <button style={{marginLeft:12}} onClick={()=>{setSelected(r.id);setDecision(r.review?.decision||"EM ANÁLISE");setNotes(r.review?.notes||"")}}>Analisar</button>
+  </div>)}</div>
+  {entry&&<div style={{padding:14,marginTop:12,border:"1px solid #526b81",borderRadius:8}}>
+   <h3>Revisão humana: {entry.reference}</h3>
+   <select value={decision} onChange={e=>setDecision(e.target.value)}><option>EM ANÁLISE</option><option>APLICÁVEL</option><option>NÃO APLICÁVEL</option></select>
+   <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Fundamentação, verificação de vigência e escopo" style={{display:"block",width:"100%",margin:"12px 0"}}/>
+   <button onClick={save}>Registrar revisão</button>
+  </div>}
+ </section>;
+}
