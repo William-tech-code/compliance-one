@@ -1,3 +1,4 @@
+import {validateGovernanceMutation} from "./governanceGuard.js";
 import {validateCorrectiveActionMutation} from "./correctiveActionGuard.js";
 import {MONITOR_SOURCES,probeRegulation,compareRegulationSnapshot} from "./regulatoryMonitor.js";
 import {validateAiRequest,buildAiMessages} from "./aiSafety.js";
@@ -794,6 +795,12 @@ app.post(
   authenticate,
   requirePermission("record:write"),
   (req, res) => {
+    if(req.params.type==="workspace"){
+      try{
+        validateCorrectiveActionMutation({},req.body||{},req.user.email);
+        validateGovernanceMutation({},req.body||{},req.user.email);
+      }catch(e){return res.status(422).json({error:e.message})}
+    }
     const recordId = id();
     const timestamp = now();
 
@@ -887,6 +894,7 @@ app.put(
 
     try{
       validateCorrectiveActionMutation(JSON.parse(record.payload),req.body||{},req.user.email);
+      validateGovernanceMutation(JSON.parse(record.payload),req.body||{},req.user.email);
     }catch(error){
       return res.status(422).json({error:error.message});
     }
