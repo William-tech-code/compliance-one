@@ -748,6 +748,7 @@ function AppCore() {
   const [remoteRecordId,setRemoteRecordId] = useState(null);
   const hydrationRef = useRef(false);
   const remoteRecordIdRef = useRef(null);
+  const remoteRecordVersionRef = useRef(null);
   const syncTimerRef = useRef(null);
 
   useEffect(()=>{
@@ -786,6 +787,7 @@ function AppCore() {
           setS(merged);
           setRemoteRecordId(record.id);
           remoteRecordIdRef.current=record.id;
+          remoteRecordVersionRef.current=record.version;
         }
         hydrationRef.current=true;
         if(active) setApiUser(me.user||null);
@@ -811,10 +813,13 @@ function AppCore() {
         setApiSyncing(true);
         const id=remoteRecordIdRef.current;
         if(id){
-          await apiPut(`/records/${id}`,s);
+          const updated=await apiPut(`/records/${id}`,s,remoteRecordVersionRef.current);
+          remoteRecordVersionRef.current=updated.version;
         }else{
           const created=await apiPost("/records/workspace",s);
           remoteRecordIdRef.current=created?.id||null;
+        remoteRecordVersionRef.current=1;
+          remoteRecordVersionRef.current=1;
           setRemoteRecordId(created?.id||null);
         }
         setApiSyncError(false);
