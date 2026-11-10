@@ -604,58 +604,74 @@ const RISK_LEVEL = (p,i) => {
 const now = () => new Date().toLocaleString("pt-BR");
 const uid = p => `${p}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2,6).toUpperCase()}`;
 
+const DEEP_AUDIT_DIMENSIONS = [
+  ["Responsabilidade","Existe um responsável nominalmente designado pelo controle de {topic}?"],
+  ["Política","Há política formal aprovada que disciplina {topic}?"],
+  ["Procedimento","O procedimento operacional de {topic} está documentado e disponível?"],
+  ["Risco","Os riscos inerentes a {topic} foram identificados e avaliados?"],
+  ["Criticidade","A criticidade dos riscos de {topic} considera probabilidade e impacto?"],
+  ["Inventário","Existe inventário atualizado de ativos, operações ou registros de {topic}?"],
+  ["Obrigação","Foram identificadas as obrigações legais e contratuais aplicáveis a {topic}?"],
+  ["Evidência","A execução do controle de {topic} produz evidência verificável?"],
+  ["Aprovação","As aprovações relevantes de {topic} seguem alçadas formalizadas?"],
+  ["Segregação","Há segregação entre execução, aprovação e fiscalização de {topic}?"],
+  ["Acesso","O acesso a informações e operações de {topic} é limitado por função?"],
+  ["Revisão de acesso","Os acessos privilegiados relacionados a {topic} são revisados periodicamente?"],
+  ["Treinamento","Os profissionais responsáveis por {topic} recebem capacitação específica?"],
+  ["Competência","A competência técnica exigida para {topic} é comprovada e atualizada?"],
+  ["Terceiros","Os terceiros envolvidos em {topic} são avaliados conforme seu risco?"],
+  ["Contrato","Os contratos relativos a {topic} contêm obrigações e responsabilidades adequadas?"],
+  ["Monitoramento","Existem indicadores objetivos para monitorar {topic}?"],
+  ["Periodicidade","A periodicidade de revisão de {topic} está definida e é cumprida?"],
+  ["Teste","A efetividade dos controles de {topic} é testada com metodologia documentada?"],
+  ["Auditoria","Há auditoria independente ou revisão amostral de {topic}?"],
+  ["Desvio","Os desvios identificados em {topic} são registrados e classificados?"],
+  ["Correção","As falhas de {topic} geram planos de ação com responsável e prazo?"],
+  ["Validação","A conclusão das ações corretivas de {topic} exige validação de eficácia?"],
+  ["Incidente","Existe procedimento para detectar e comunicar incidentes ligados a {topic}?"],
+  ["Resposta","Os incidentes críticos de {topic} possuem responsáveis e plano de resposta?"],
+  ["Continuidade","Existe contingência para indisponibilidade de processos críticos de {topic}?"],
+  ["Rastreabilidade","É possível rastrear decisões, alterações e evidências de {topic}?"],
+  ["Retenção","Os registros de {topic} seguem critérios documentados de retenção e descarte?"],
+  ["Reporte","A liderança recebe reporte periódico sobre riscos e resultados de {topic}?"],
+  ["Exceções","As exceções aos controles de {topic} são justificadas, aprovadas e registradas?"],
+  ["Melhoria","Os resultados de {topic} alimentam um ciclo formal de melhoria contínua?"],
+  ["Verificação","Há verificação documentada de aderência de {topic} aos requisitos aplicáveis?"]
+];
+
+const ENTERPRISE_AUDIT_TOPICS = [
+  ["Governança","governance"],["Direção executiva","governance"],
+  ["Integridade e anticorrupção","integrity"],["Canal de denúncias","ethics"],
+  ["Jurídico e regulatório","legal"],["Recursos humanos","hr"],
+  ["Financeiro e tesouraria","finance"],["Contabilidade e fiscal","finance"],
+  ["Compras e suprimentos","thirdparty"],["Gestão de terceiros","thirdparty"],
+  ["Operações e processos","controls"],["Comercial e clientes","controls"],
+  ["Tecnologia da informação","security"],["Segurança cibernética","security"],
+  ["Privacidade e dados pessoais","privacy"],["Gestão da qualidade","quality"],
+  ["Saúde e segurança ocupacional","safety"],["Gestão ambiental","environment"],
+  ["Auditoria interna","audit"]
+];
+
 function questionBank(company={}, globalProfile={}) {
   const segment=company.segment||"Outro";
-  const extra = SECTOR_QUESTIONS[segment] || SECTOR_QUESTIONS["Outro"];
-  const pack = SECTOR_PACKS[segment] || SECTOR_PACKS["Outro"];
-  const companyName=company.name||"a organização";
-  const size=company.size||"o porte informado";
-  const city=company.city||"a localidade informada";
-  const mode=company.mode||"o modelo operacional informado";
-  const jurisdictions=(globalProfile.jurisdictions||["BR"]).join(", ");
-  const context=`na empresa ${companyName}, considerando o porte ${size}, o ramo ${segment}, a operação ${mode}, a localidade ${city} e as jurisdições ${jurisdictions}`;
-
-  const sectorGenerated = pack.flatMap((area,ai)=>UNIVERSAL_QUESTION_TEMPLATES.slice(ai*3,ai*3+3).map((q,j)=>[
-    area, `No processo de ${area}, ${q[1].replace(/^Existe |^Há |^Os |^A |^O |^Contratos /,"").replace(/\?$/,"")}?`, q[2]
-  ]));
-
-  // O questionário é transversal: chão de fábrica/operação, liderança e funções de suporte.
-  const enterpriseAreas = [
-    "Governança e Conselho","Direção Executiva","Compliance e Integridade","Jurídico",
-    "Recursos Humanos","Financeiro e Controladoria","Compras e Suprimentos","Terceiros e Fornecedores",
-    "Operações","Comercial e Vendas","Logística","Tecnologia e Segurança da Informação",
-    "Privacidade e Dados","Qualidade","Saúde e Segurança","Meio Ambiente","Auditoria",
-    "Gestão de Documentos","Continuidade de Negócios","Canal de Denúncias","ESG e Responsabilidade",
-    "Treinamento e Cultura"
+  const sectorTopics=(SECTOR_PACKS[segment]||SECTOR_PACKS["Outro"]).slice(0,6);
+  const topics=[
+    ...ENTERPRISE_AUDIT_TOPICS,
+    ...sectorTopics.map(topic=>[topic,"sector"])
   ];
-  const cross = enterpriseAreas.flatMap((area,idx)=>{
-    const q=UNIVERSAL_QUESTION_TEMPLATES[idx%UNIVERSAL_QUESTION_TEMPLATES.length];
-    return [[area, `${q[1].replace(/\?$/,"")} ${context}?`, q[2]]];
-  });
-
-  const raw=[...BASE_QUESTIONS,...extra,...UNIVERSAL_QUESTION_TEMPLATES,...sectorGenerated,...cross];
-  const seen=new Set();
-  const unique=raw.filter(q=>{
-    const k=q[0]+"|"+q[1];
-    if(seen.has(k)) return false;
-    seen.add(k); return true;
-  });
-
-  const expanded=[...unique];
-  let n=0;
-  while(expanded.length<120){
-    const q=UNIVERSAL_QUESTION_TEMPLATES[n%UNIVERSAL_QUESTION_TEMPLATES.length];
-    const area=enterpriseAreas[n%enterpriseAreas.length];
-    expanded.push([area,`${q[1].replace(/\?$/,"")} ${context}?`,q[2]]);
-    n++;
-  }
-
-  return expanded.slice(0,160).map((q,i)=>({
-    id:`Q${String(i+1).padStart(3,"0")}`,
-    area:q[0],
-    text:q[1],
-    key:q[2]
-  }));
+  // 25 áreas (19 corporativas + 6 setoriais) × 32 verificações = 800 itens.
+  // IDs estáveis por posição preservam respostas existentes ao reabrir o diagnóstico.
+  return topics.flatMap(([area,key],areaIndex)=>
+    DEEP_AUDIT_DIMENSIONS.map(([dimension,template],dimensionIndex)=>({
+      id:`Q${String(areaIndex*DEEP_AUDIT_DIMENSIONS.length+dimensionIndex+1).padStart(3,"0")}`,
+      area,
+      dimension,
+      sector:segment,
+      key,
+      text:template.replace("{topic}",area.toLowerCase()) ,
+      evidenceHint:`Solicite documentos, registros ou evidências de ${dimension.toLowerCase()} referentes a ${area.toLowerCase()}.`
+    }))
+  );
 }
 
 
@@ -807,15 +823,15 @@ function AppCore() {
   },[s,apiUser]);
 
   const questions = useMemo(()=>questionBank(s.company,s.globalProfile),[s.company,s.globalProfile]);
-  const answered = Object.keys(s.answers).length;
+  const answered = questions.filter(q=>s.answers[q.id]).length;
   const done = s.workflow;
   const progress = Math.round(Object.values(done).filter(Boolean).length / Object.keys(done).length * 100);
 
   const maturity = useMemo(()=>{
     if(!answered) return 18;
-    const vals = Object.values(s.answers);
+    const vals = questions.map(q=>s.answers[q.id]).filter(v=>v && v!=="N/A");
     const score = vals.reduce((a,v)=>a+(v==="Sim"?1:v==="Parcialmente"?0.5:0),0);
-    return Math.round(18 + (score / Math.max(1,questions.length))*82);
+    return Math.round(18 + (score / Math.max(1,vals.length))*82);
   },[s.answers,questions.length]);
 
   const stats = useMemo(()=>{
@@ -1428,7 +1444,7 @@ function Questionnaire({s,questions,answered,answer,finish}){
   const value=q ? s.answers[q.id] : null;
   const isLast=index>=questions.length-1;
   const completed=answered===questions.length;
-  const pct=Math.round(answered/questions.length*100);
+  const pct=Math.round(answered/Math.max(1,questions.length)*100);
 
   function choose(v){
     answer(q.id,v);
@@ -1456,7 +1472,7 @@ function Questionnaire({s,questions,answered,answer,finish}){
       <div className="q-meta"><span>PERGUNTA {index+1} DE {questions.length}</span><b>{q.area}</b></div>
       <div className="q-number">{String(index+1).padStart(2,"0")}</div>
       <h2>{q.text}</h2>
-      <p className="q-hint">Selecione uma resposta. Assim que responder, a próxima pergunta será apresentada automaticamente.</p>
+      <p className="q-hint">{q.evidenceHint||"Selecione uma resposta."} Responda com base em evidências verificáveis; N/A deve ser justificado na revisão.</p>
       <div className="q-options">
         {["Sim","Parcialmente","Não","N/A"].map(v=>
           <button className={value===v?"q-option selected":"q-option"} key={v} onClick={()=>choose(v)}>
