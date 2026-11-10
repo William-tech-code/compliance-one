@@ -48,3 +48,22 @@ test("regulatory reviews do not carry across source revisions or other organizat
   assert.equal(resolveRegulatoryReview(a,[]).status,"CONTENT_CHANGED_REVIEW_REQUIRED");
   assert.notEqual(regulatoryReviewKey("empresa-a","norma-1","v1"),regulatoryReviewKey("empresa-b","norma-1","v1"));
 });
+
+test("evidence integrity detects tampering and mismatched size", async () => {
+ const {verifyEvidenceFile}=await import("../server/evidenceIntegrity.js");
+ const fs=await import("node:fs");
+ const os=await import("node:os");
+ const path=await import("node:path");
+ const crypto=await import("node:crypto");
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),"compliance-v47-"));
+ try{
+  const file=path.join(dir,"evidence.bin");
+  fs.writeFileSync(file,"original");
+  const hash="sha256:"+crypto.createHash("sha256").update("original").digest("hex");
+  assert.equal(verifyEvidenceFile(file,hash,8),true);
+  assert.equal(verifyEvidenceFile(file,hash,7),false);
+  fs.writeFileSync(file,"tampered");
+  assert.equal(verifyEvidenceFile(file,hash,8),false);
+  assert.equal(verifyEvidenceFile(path.join(dir,"missing"),hash,8),false);
+ }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
