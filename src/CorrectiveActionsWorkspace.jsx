@@ -1,3 +1,4 @@
+import {apiPost} from "./api";
 import React,{useState} from "react";
 import {createCorrectiveAction,attachEvidence,transitionCorrectiveAction,complianceOperationsSummary} from "./complianceOperations.js";
 const makeId=()=>globalThis.crypto?.randomUUID?.()||("NEX-"+Date.now()+"-"+Math.random().toString(36).slice(2));
@@ -24,11 +25,17 @@ export default function CorrectiveActionsWorkspace({workspace,setWorkspace,revie
   if(!file)return;
   try{
    if(file.size>10*1024*1024)throw Error("Limite de 10 MB por arquivo");
-   const bytes=await file.arrayBuffer();
-   const digest=await crypto.subtle.digest("SHA-256",bytes);
-   const hash="sha256:"+Array.from(new Uint8Array(digest)).map(x=>x.toString(16).padStart(2,"0")).join("");
-   const next=attachEvidence(action,{id:makeId(),name:file.name,hash,source:"Metadados locais; arquivo original não armazenado",uploadedAt:new Date().toISOString()},actor);
-   commit(actions.map(a=>a.id===action.id?next:a));setError("");notify("Impressão digital registrada; preserve o arquivo original em repositório seguro");
+   if(!reviewer)throw Error("Sessão autenticada obrigatória");
+   const base64=await new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(String(reader.result).split(",")[1]);
+    reader.onerror=()=>reject(Error("Falha na leitura do arquivo"));
+    reader.readAsDataURL(file);
+   });
+   const uploaded=await apiPost("/evidence/upload",{actionId:action.id,name:file.name,mime:file.type,base64});
+   const next=attachEvidence(action,{id:uploaded.id,name:file.name,hash:uploaded.hash,source:"Arquivo original armazenado em disco persistente protegido",uploadedAt:uploaded.uploadedAt},actor);
+   commit(actions.map(a=>a.id===action.id?next:a));setError("");notify("Arquivo original armazenado; hash registrado");
+
   }catch(e){setError(e.message)}
  };
  return <section style={{padding:20,border:"1px solid #526b81",borderRadius:12,margin:"12px 0"}}>
