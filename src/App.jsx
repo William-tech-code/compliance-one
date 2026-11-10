@@ -10,6 +10,7 @@ import { assessDiagnostic } from "./diagnosticEngine";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { buildEnterpriseQuestions } from "./enterpriseQuestionBank";
 import "./App.css";
+import "./NexoraRelease.css";
 import { apiGet, apiPost, apiPut, bootstrapCompany, login, logout as apiLogout } from "./api";
 import NexusV125CommandCenter from "./NexusV125CommandCenter";
 import NexusAICommandCenter from "./NexusAICommandCenter";
@@ -742,6 +743,10 @@ function load() {
 
 function AppCore() {
   const [s,setS] = useState(load);
+  const [showReleaseNotice,setShowReleaseNotice] = useState(()=>{
+    try { return localStorage.getItem("nexus-release-notice-45-1")!=="dismissed"; }
+    catch { return true; }
+  });
   const [showEntry,setShowEntry] = useState(()=>{ try { return sessionStorage.getItem("nexus-entry-v119") !== "1"; } catch { return true; } });
   const [page,setPage] = useState("dashboard");
   const [busy,setBusy] = useState(null);
@@ -1218,13 +1223,23 @@ function attach(files,owner,ownerId) {
 
   return <div className="app">
     <aside>
-      <div className="brand"><b>N</b><div><strong>NEXUS</strong><small>COMPLIANCE ONE · V124</small></div></div>
+      <div className="brand"><b>N</b><div><strong>NEXORA</strong><small>COMPLIANCE ONE · ENTERPRISE</small></div></div>
       <div className="company"><small>EMPRESA ATIVA</small><strong>{s.company.name||"Novo projeto"}</strong><span>{s.company.segment||"Aguardando cadastro"}</span></div>
       <nav>{nav.map(([k,ic,l])=><button key={k} className={page===k?"active":""} onClick={()=>go(k)}><i>{ic}</i><span>{l}</span>{s.workflow[k]&&<em>✓</em>}</button>)}</nav>
       <div className="engine">● NEXUS INTELLIGENCE ENGINE <b>ONLINE</b></div>
     </aside>
 
     <main className="nexus-main">
+      {showReleaseNotice&&<section className="nexora-release-notice" role="status" aria-label="Novidades da versão">
+        <div className="nexora-release-icon" aria-hidden="true">✦</div>
+        <div className="nexora-release-copy">
+          <span className="nexora-release-eyebrow">ATUALIZAÇÃO DO COMPLIANCE ONE</span>
+          <strong>Mais estabilidade. Inteligência com rastreabilidade.</strong>
+          <p>Nova revisão da central regulatória e do assistente de prioridades. As recomendações exigem validação humana e não substituem parecer jurídico.</p>
+        </div>
+        <button className="nexora-release-explore" onClick={()=>setPage("standards")}>Explorar novidades →</button>
+        <button className="nexora-release-close" aria-label="Dispensar aviso" onClick={()=>{setShowReleaseNotice(false);try{localStorage.setItem("nexus-release-notice-45-1","dismissed")}catch{}}}>×</button>
+      </section>}
       <header><div><small>NEXUS / INTELLIGENCE CENTER / {page.toUpperCase()}</small><strong>{nav.find(x=>x[0]===page)?.[2]||"Command Center"}</strong></div>
         <div className="top-actions">
           <button onClick={()=>setModal("company")}>✎ Editar empresa</button>
@@ -1299,18 +1314,18 @@ function FirstAccess({onStart,onDemo}){
   const lines=["Inicializando Intelligence Core","Mapeando arquitetura de Compliance","Preparando Risk Engine","Preparando Legal Intelligence","Ambiente pronto"];
   return <div className={"ai-entry "+(boot?"booting":"")}>
     <div className="ai-stars"/><div className="ai-grid-floor"/><div className="ai-vignette"/>
-    <div className="ai-top"><span><i/> NEXUS INTELLIGENCE</span><small>SECURE ENVIRONMENT · ONLINE</small></div>
+    <div className="ai-top"><span><i/> NEXORA COMPLIANCE ONE</span><small>ENTERPRISE INTELLIGENCE · ACESSO SEGURO</small></div>
     <div className="ai-center"><div className="ai-core"><div className="core-scan"/><b>N</b><span>AI</span></div><div className="ai-orbit a"/><div className="ai-orbit b"/><div className="ai-orbit c"/>
       <div className="ai-node n1">RISK<br/><b>ENGINE</b></div><div className="ai-node n2">LEGAL<br/><b>CORE</b></div><div className="ai-node n3">DATA<br/><b>INTELLIGENCE</b></div>
     </div>
     <div className="ai-copy"><div className="ai-kicker"><span/> SISTEMA INTELIGENTE DE GOVERNANÇA</div>
-      <h1>Compliance.<br/><em>Elevado pela inteligência.</em></h1>
-      <p>Uma experiência clean e tecnológica para diagnosticar a empresa, antecipar riscos e conduzir todo o processo até a conclusão.</p>
+      <h1>Integridade que protege.<br/><em>Inteligência que transforma.</em></h1>
+      <p>Diagnósticos, riscos, planos de ação e evidências em uma jornada executiva. Decisões relevantes permanecem sob responsabilidade humana.</p>
       {!boot?<div className="ai-actions"><button className="ai-start" onClick={()=>{setBoot(true);setTimeout(onStart,650)}}>INICIAR EXPERIÊNCIA <b>→</b></button><button className="ai-demo" onClick={onDemo}>Acessar ambiente DEMO</button><button className="ai-skip" onClick={onStart}>Entrar no sistema</button></div>:
       <div className="ai-boot"><div className="bootbar"><i style={{width:(stage+1)*20+"%"}}/></div>{lines.map((x,i)=><div className={"bootline "+(i<=stage?"on":"")} key={x}><span>{i<=stage?"✓":"○"}</span>{x}</div>)}</div>}
       <div className="ai-caps">{["IA & ANALYTICS","RISK ENGINE","LEGAL INTELLIGENCE","EXECUTIVE REPORT"].map(x=><span key={x}>● {x}</span>)}</div>
     </div>
-    <div className="ai-bottom"><span>ENCRYPTED WORKSPACE</span><span>REAL-TIME AUDIT TRAIL</span><span>VERSION 124 · PREMIUM ENTERPRISE CORE</span></div>
+    <div className="ai-bottom"><span>GESTÃO DE RISCOS</span><span>RASTREABILIDADE DE EVIDÊNCIAS</span><span>NEXORA · ENTERPRISE INTELLIGENCE</span></div>
   </div>
 }
 
@@ -1739,6 +1754,14 @@ function RegulatoryReviewPanel({s,setS,notify,questions,reviewer}){
  const [decision,setDecision]=useState("EM ANÁLISE");
  const [notes,setNotes]=useState("");
  const summary=regulatoryIntelligenceSummary(s.company.segment,questions,s.regulatoryReviews||[]);
+ const briefing=generateComplianceBriefing({
+  segment:s.company?.segment||"",
+  questions:questions||[],
+  answers:s.answers||{},
+  risks:s.risks||[],
+  actions:s.actions||[],
+  reviews:s.regulatoryReviews||[]
+ });
  const entry=summary.entries.find(x=>x.id===selected);
  const save=()=>{
   if(!entry)return;

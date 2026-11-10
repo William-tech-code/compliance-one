@@ -1,0 +1,35 @@
+.nexora-release-notice {
+  margin: 16px 18px 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  color: #eaf8ff;
+  border: 1px solid rgba(109, 210, 233, .38);
+  border-radius: 18px;
+  background: linear-gradient(115deg, #0a2639 0%, #12445b 54%, #0d2f4a 100%);
+  box-shadow: 0 12px 34px rgba(0, 15, 32, .18);
+}
+.nexora-release-icon {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  color: #102e3d;
+  background: #8ee6dc;
+  font-size: 24px;
+}
+.nexora-release-copy { flex: 1; min-width: 0; }
+.nexora-release-eyebrow { display: block; color: #99ede6; font: 700 10px/1.4 system-ui,sans-serif; letter-spacing: .13em; }
+.nexora-release-copy strong { display: block; font: 700 17px/1.4 system-ui,sans-serif; margin-top: 3px; }
+.nexora-release-copy p { margin: 4px 0 0; color: #c4dce9; font: 400 12px/1.6 system-ui,sans-serif; }
+.nexora-release-explore { flex: none; padding: 11px 15px; border: 1px solid rgba(155,232,224,.6); border-radius: 10px; background: rgba(130,225,218,.12); color: #d6fff8; font-weight: 700; cursor: pointer; }
+.nexora-release-explore:hover { background: rgba(130,225,218,.24); }
+.nexora-release-close { align-self: flex-start; flex: none; border: 0; background: transparent; color: #d0e7ef; font-size: 23px; cursor: pointer; }
+@media (max-width: 880px) {
+  .nexora-release-notice { flex-wrap: wrap; margin: 12px; padding: 15px; }
+  .nexora-release-copy { flex-basis: calc(100% - 105px); }
+  .nexora-release-explore { margin-left: 64px; }
+}
