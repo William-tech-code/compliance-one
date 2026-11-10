@@ -295,6 +295,19 @@ CREATE TABLE IF NOT EXISTS regulatory_monitor_snapshots (
  error TEXT
 );
 `);
+db.exec(`
+CREATE TABLE IF NOT EXISTS regulatory_tenant_reviews (
+ company_id TEXT NOT NULL,
+ source_id TEXT NOT NULL,
+ digest TEXT NOT NULL,
+ decision TEXT NOT NULL,
+ notes TEXT NOT NULL,
+ reviewed_by TEXT NOT NULL,
+ reviewed_at TEXT NOT NULL,
+ PRIMARY KEY(company_id,source_id,digest)
+);
+CREATE INDEX IF NOT EXISTS idx_regulatory_tenant_reviews ON regulatory_tenant_reviews(company_id,source_id);
+`);
 let monitoring=false;
 async function runRegulatoryMonitor(){
  if(monitoring)return {error:"MONITOR_BUSY"};
@@ -321,7 +334,12 @@ async function runRegulatoryMonitor(){
 }
 app.get("/api/regulatory/monitor",authenticate,requirePermission("record:read"),(req,res)=>{
  const snapshots=db.prepare("SELECT source_id,digest,checked_at,changed_at,status,error FROM regulatory_monitor_snapshots").all();
- res.json({sources:MONITOR_SOURCES.map(x=>({...x,snapshot:snapshots.find(s=>s.source_id===x.id)||null})),legalValidityVerified:false});
+ const reviews=db.prepare("SELECT source_id,digest,decision,reviewed_at FROM regulatory_tenant_reviews WHERE company_id=?").all(req.user.companyId);
+ res.json({sources:MONITOR_SOURCES.map(x=>{
+  const snapshot=snapshots.find(s=>s.source_id===x.id)||null;
+  const review=snapshot?reviews.find(r=>r.source_id===x.id&&r.digest===snapshot.digest):null;
+  return {...x,snapshot:snapshot?{...snapshot,status:review?.decision||snapshot.status,tenantReview:review||null}:null};
+ }),legalValidityVerified:false});
 });
 app.post("/api/regulatory/monitor/run",authenticate,requirePermission("audit:read"),async(req,res)=>{
  const result=await runRegulatoryMonitor();
@@ -337,7 +355,9 @@ app.post("/api/regulatory/monitor/:sourceId/review",authenticate,requirePermissi
  if(!["REVIEWED","NEEDS_ACTION"].includes(decision)||notes.length<12||notes.length>2000)return res.status(400).json({error:"REVIEW_NOT_VALID"});
  const snapshot=db.prepare("SELECT * FROM regulatory_monitor_snapshots WHERE source_id=?").get(source.id);
  if(!snapshot)return res.status(404).json({error:"NO_SNAPSHOT"});
- db.prepare("UPDATE regulatory_monitor_snapshots SET status=? WHERE source_id=?").run(decision,source.id);
+ db.prepare(`INSERT INTO regulatory_tenant_reviews(company_id,source_id,digest,decision,notes,reviewed_by,reviewed_at)
+ VALUES(?,?,?,?,?,?,?) ON CONFLICT(company_id,source_id,digest) DO UPDATE SET decision=excluded.decision,notes=excluded.notes,reviewed_by=excluded.reviewed_by,reviewed_at=excluded.reviewed_at`)
+ .run(req.user.companyId,source.id,snapshot.digest,decision,notes,req.user.sub,now());
  audit(req,"REGULATORY_CHANGE_REVIEWED","regulatory",source.id,{decision,notes,sourceDigest:snapshot.digest});
  res.json({ok:true,sourceId:source.id,status:decision});
 });
