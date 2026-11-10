@@ -1440,21 +1440,6 @@ function NexusPremiumOverview({s,maturity,progress,stats,go}){
 function Dashboard({s,maturity,progress,stats,go}){
   const hasCompany=!!s.company.name;
   return <div className="command-center">
-    <NexusV125CommandCenter s={s} maturity={maturity} progress={progress} stats={stats} go={go}/>
-    <NexusAICommandCenter s={s} maturity={maturity} progress={progress} stats={stats} go={go}/>
-    <NexusDecisionEngine s={s} maturity={maturity} go={go}/>
-    <NexusPredictiveIntelligence s={s} maturity={maturity} go={go}/>
-    <NexusComplianceDNA s={s} maturity={maturity} go={go}/>
-    <NexusCommandGraph s={s} go={go}/>
-    <NexusExecutiveIntelligence s={s} maturity={maturity} go={go}/>
-    <NexusAutonomousActionCenter s={s} go={go}/>
-      <NexusPremiumOverview s={s} maturity={maturity} progress={progress} stats={stats} go={go}/>
-      <NexusExecutiveRadar s={s} go={go}/>
-      <NexusAICore s={s} go={go}/>
-      <NexusAdaptiveEngine s={s} go={go}/>
-      <NexusComplianceOrchestrator s={s} go={go}/>
-      <NexusIntelligenceEngine s={s} go={go}/>
-      <NexusEnterprisePanel s={s} setPage={go}/>
     <div className="command-hero">
       <div className="hero-glow glow-a"></div><div className="hero-glow glow-b"></div>
       <div className="hero-copy">
