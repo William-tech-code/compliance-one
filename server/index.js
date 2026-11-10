@@ -1,3 +1,4 @@
+import {validateEvidenceReferences} from "./evidenceGuard.js";
 import {validateGovernanceMutation} from "./governanceGuard.js";
 import {validateCorrectiveActionMutation} from "./correctiveActionGuard.js";
 import {MONITOR_SOURCES,probeRegulation,compareRegulationSnapshot} from "./regulatoryMonitor.js";
@@ -799,6 +800,7 @@ app.post(
       try{
         validateCorrectiveActionMutation({},req.body||{},req.user.email);
         validateGovernanceMutation({},req.body||{},req.user.email);
+        validateEvidenceReferences({},req.body||{},fileId=>db.prepare("SELECT action_id,sha256,name FROM evidence_files WHERE id=? AND company_id=?").get(fileId,req.user.companyId));
       }catch(e){return res.status(422).json({error:e.message})}
     }
     const recordId = id();
@@ -895,6 +897,7 @@ app.put(
     try{
       validateCorrectiveActionMutation(JSON.parse(record.payload),req.body||{},req.user.email);
       validateGovernanceMutation(JSON.parse(record.payload),req.body||{},req.user.email);
+      validateEvidenceReferences(JSON.parse(record.payload),req.body||{},fileId=>db.prepare("SELECT action_id,sha256,name FROM evidence_files WHERE id=? AND company_id=?").get(fileId,req.user.companyId));
     }catch(error){
       return res.status(422).json({error:error.message});
     }
