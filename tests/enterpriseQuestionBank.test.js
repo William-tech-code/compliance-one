@@ -26,3 +26,14 @@ test("questions preserve area and control dimensions",()=>{
   assert.equal(DIAGNOSTIC_DIMENSIONS.length,25);
   assert.ok(buildEnterpriseQuestions("Gestão Pública").some(q=>q.text.includes("licitações")));
 });
+
+test("risk mapping produces differentiated specialist categories",()=>{
+ const questions=buildEnterpriseQuestions("Hotelaria / Turismo");
+ const byDimension=new Map(questions.map(q=>[q.dimension,q.key]));
+ assert.equal(byDimension.get("privacidade"),"privacy");
+ assert.equal(byDimension.get("terceiros"),"thirdparty");
+ assert.equal(byDimension.get("auditoria"),"audit");
+ assert.equal(byDimension.get("treinamento"),"training");
+ assert.equal(byDimension.get("requisitos"),"legal");
+ assert.ok(new Set(questions.map(q=>q.key)).size>=8);
+});
