@@ -21,7 +21,7 @@ jobs:
       - name: Validate 800-question sector diagnostics
         run: node --test tests/enterpriseQuestionBank.test.js tests/diagnosticEngine.test.js tests/diagnosticGovernance.test.js
       - name: Test concurrent API workspace writes
-        run: node --test tests/workspaceConcurrency.test.js
+        run: node --test tests/workspaceConcurrency.test.js tests/workspaceIsolationRecovery.test.js
       - name: Build frontend
         run: npm run build
       - name: Check production startup without secrets is rejected
