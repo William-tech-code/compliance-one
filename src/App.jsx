@@ -828,13 +828,12 @@ function AppCore() {
 
   const notify = msg => { setToast(msg); setTimeout(()=>setToast(""),2600); };
   const run = (text,cb) => {
-    setBusy({text,p:0});
-    let p=0;
-    const t=setInterval(()=>{
-      p=Math.min(100,p+Math.floor(Math.random()*13)+9);
-      setBusy({text,p});
-      if(p>=100){clearInterval(t);setTimeout(()=>{setBusy(null);cb?.()},220);}
-    },90);
+    // Não simular processamento aleatório: a ação já está pronta.
+    setBusy({text,p:100});
+    window.setTimeout(()=>{
+      setBusy(null);
+      cb?.();
+    },180);
   };
   const commit = (ns,msg) => {
     setS({...ns,history:[...(ns.history||s.history),{id:uid("LOG"),text:msg,date:now()}]});
@@ -1233,7 +1232,7 @@ function FirstAccess({onStart,onDemo}){
     <div className="ai-copy"><div className="ai-kicker"><span/> SISTEMA INTELIGENTE DE GOVERNANÇA</div>
       <h1>Compliance.<br/><em>Elevado pela inteligência.</em></h1>
       <p>Uma experiência clean e tecnológica para diagnosticar a empresa, antecipar riscos e conduzir todo o processo até a conclusão.</p>
-      {!boot?<div className="ai-actions"><button className="ai-start" onClick={()=>{setBoot(true);setTimeout(onStart,8000)}}>INICIAR EXPERIÊNCIA <b>→</b></button><button className="ai-demo" onClick={onDemo}>Acessar ambiente DEMO</button><button className="ai-skip" onClick={onStart}>Entrar no sistema</button></div>:
+      {!boot?<div className="ai-actions"><button className="ai-start" onClick={()=>{setBoot(true);setTimeout(onStart,650)}}>INICIAR EXPERIÊNCIA <b>→</b></button><button className="ai-demo" onClick={onDemo}>Acessar ambiente DEMO</button><button className="ai-skip" onClick={onStart}>Entrar no sistema</button></div>:
       <div className="ai-boot"><div className="bootbar"><i style={{width:(stage+1)*20+"%"}}/></div>{lines.map((x,i)=><div className={"bootline "+(i<=stage?"on":"")} key={x}><span>{i<=stage?"✓":"○"}</span>{x}</div>)}</div>}
       <div className="ai-caps">{["IA & ANALYTICS","RISK ENGINE","LEGAL INTELLIGENCE","EXECUTIVE REPORT"].map(x=><span key={x}>● {x}</span>)}</div>
     </div>
