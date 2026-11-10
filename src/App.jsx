@@ -768,7 +768,6 @@ function AppCore() {
       try{
         const me=await apiGet("/me");
         if(!active) return;
-        setApiUser(me.user||null);
         const remote=await apiGet("/records/workspace");
         const record=remote?.records?.[0];
         if(record?.payload){
@@ -788,6 +787,7 @@ function AppCore() {
           remoteRecordIdRef.current=record.id;
         }
         hydrationRef.current=true;
+        if(active) setApiUser(me.user||null);
       }catch(err){
         hydrationRef.current=true;
         if(active){
@@ -864,7 +864,7 @@ function AppCore() {
   async function connectApi(session,seedState=null){
     try{
       const me=session?.user ? session : await apiGet("/me");
-      setApiUser(me?.user||null);
+      hydrationRef.current=false;
       const remote=await apiGet("/records/workspace");
       const record=remote?.records?.[0];
       if(record?.payload){
@@ -888,6 +888,7 @@ function AppCore() {
         remoteRecordIdRef.current=created?.id||null;
       }
       hydrationRef.current=true;
+      setApiUser(me?.user||null);
       notify("NEXUS conectado à API V124.");
     }catch(err){
       setApiUser(null);
