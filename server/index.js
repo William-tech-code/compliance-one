@@ -1,3 +1,4 @@
+import {validateAiRequest,buildAiMessages} from "./aiSafety.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -243,6 +244,36 @@ app.get("/api/health", (req, res) => {
 | PRIMEIRA EMPRESA + ADMINISTRADOR
 |--------------------------------------------------------------------------
 */
+
+const aiCalls=new Map();
+app.post("/api/ai/compliance-briefing",authenticate,requirePermission("record:read"),async(req,res)=>{
+ const key=process.env.OPENAI_API_KEY;
+ if(!key)return res.status(503).json({error:"AI_NOT_CONFIGURED"});
+ const model=process.env.OPENAI_MODEL||"gpt-4.1-mini";
+ let safe;
+ try{safe=validateAiRequest(req.body)}catch(e){return res.status(400).json({error:e.message})}
+ const last=aiCalls.get(req.user.sub)||0;
+ if(Date.now()-last<15000)return res.status(429).json({error:"AI_RATE_LIMIT"});
+ aiCalls.set(req.user.sub,Date.now());
+ try{
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),15000);
+  let response;
+  try{
+   response=await fetch("https://api.openai.com/v1/chat/completions",{
+    method:"POST",signal:controller.signal,
+    headers:{"Authorization":"Bearer "+key,"Content-Type":"application/json"},
+    body:JSON.stringify({model,messages:buildAiMessages(safe),max_completion_tokens:700,store:false})
+   });
+  }finally{clearTimeout(timer)}
+  if(!response.ok)return res.status(502).json({error:"AI_PROVIDER_UNAVAILABLE"});
+  const data=await response.json();
+  const answer=data?.choices?.[0]?.message?.content;
+  if(typeof answer!=="string"||!answer.trim())return res.status(502).json({error:"AI_EMPTY_RESPONSE"});
+  audit(req,"AI_BRIEFING_REQUESTED","ai","",{model,questionLength:safe.question.length});
+  return res.json({answer:answer.slice(0,5000),model,legalReviewRequired:true,liveLegalUpdate:false});
+ }catch(e){return res.status(502).json({error:"AI_PROVIDER_UNAVAILABLE"})}
+});
 
 app.post("/api/bootstrap", async (req, res) => {
   const bootstrapSecret = process.env.BOOTSTRAP_SECRET;
