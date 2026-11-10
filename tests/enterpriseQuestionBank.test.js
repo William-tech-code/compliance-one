@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { buildEnterpriseQuestions, ENTERPRISE_AREAS, DIAGNOSTIC_DIMENSIONS } from "../src/enterpriseQuestionBank.js";
 
 test("every supported sector generates 800 unique questions across 32 areas",()=>{
-  const sectors=["Supermercados / Varejo","Logística / Transportes","Produção / Indústria","Metalúrgica","Química / Petroquímica","Hotelaria / Turismo","Saúde / Hospitalar","Construção","Gestão Pública","Agronegócio","Financeiro","Educação","Tecnologia","Serviços","Energia","Outro"];
+  const sectors=["Supermercados / Varejo","Logística / Transportes","Produção / Indústria","Metalúrgica","Química / Petroquímica","Hotelaria / Turismo","Saúde / Hospitalar","Construção","Gestão Pública","Agronegócio","Financeiro","Educação","Tecnologia","Serviços","Energia","Cartórios / Tabelionatos de Notas","Outro"];
   for(const sector of sectors){
     const questions=buildEnterpriseQuestions(sector);
     assert.equal(questions.length,800,sector);
@@ -36,4 +36,12 @@ test("risk mapping produces differentiated specialist categories",()=>{
  assert.equal(byDimension.get("treinamento"),"training");
  assert.equal(byDimension.get("requisitos"),"legal");
  assert.ok(new Set(questions.map(q=>q.key)).size>=8);
+});
+
+test("notary diagnostic covers dedicated notarial topics",()=>{
+ const questions=buildEnterpriseQuestions("Cartórios / Tabelionatos de Notas");
+ assert.equal(questions.length,800);
+ assert.ok(questions.some(q=>q.text.includes("emolumentos")));
+ assert.ok(questions.some(q=>q.text.includes("e-Notariado")));
+ assert.ok(questions.some(q=>q.text.includes("lavagem de dinheiro")));
 });
