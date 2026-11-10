@@ -1,3 +1,4 @@
+import { assessDiagnostic } from "./diagnosticEngine";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { buildEnterpriseQuestions } from "./enterpriseQuestionBank";
 import "./App.css";
@@ -947,30 +948,7 @@ function AppCore() {
   }
 
   function generateFromAnswers(answerMap=s.answers) {
-    const generatedRisks=[], generatedActions=[], generatedLegal=[], seen=new Set();
-    questions.forEach(q=>{
-      const a=answerMap[q.id];
-      if(a!=="Não" && a!=="Parcialmente") return;
-      const lib=RISK_LIBRARY[q.key] || RISK_LIBRARY.controls;
-      const uniqueKey=q.id;
-      if(seen.has(uniqueKey)) return;
-      seen.add(uniqueKey);
-      const p=a==="Não"?4:3, i=lib.legal?4:3, level=RISK_LEVEL(p,i);
-      const risk={id:uid("RISCO"),title:`${lib.title} — ${q.area}`,category:q.area,sourceQuestion:q.id,sourceText:q.text,answer:a,p,i,score:p*i,level,status:"Pendente de confirmação",cause:lib.cause,consequence:lib.consequence,control:"Controle a validar no diagnóstico.",recommendation:lib.recommendation,responsible:lib.owner,created:now(),automatic:true};
-      generatedRisks.push(risk);
-      generatedActions.push({id:uid("ACAO"),riskId:risk.id,title:lib.action,description:lib.recommendation,responsible:lib.owner,priority:level,deadline:"",status:"Pendente de confirmação",evidenceRequired:"Evidência documental da implementação e eficácia.",automatic:true,created:now()});
-      if(lib.legal) generatedLegal.push({id:uid("JUR"),riskId:risk.id,title:`Avaliação jurídica — ${lib.title}`,reason:`Achado ${level.toLowerCase()} relacionado a ${lib.category}. Potencial impacto legal, regulatório, contratual ou de responsabilidade.`,status:"Aguardando confirmação",responsible:"Jurídico",automatic:true,created:now()});
-    });
-    const analysis=frameworkAnalysis();
-    analysis.selected.slice(0,8).forEach(f=>{
-      const key="framework:"+f.id;
-      if(seen.has(key)) return;
-      seen.add(key);
-      generatedRisks.push({id:uid("RISCO"),title:`Exposição de framework — ${f.name}`,category:f.area,sourceQuestion:"ENGINE-GLOBAL",sourceText:`Camada recomendada: ${f.name}`,answer:"Detecção automática",p:3,i:f.tier==="Jurisdictional"?4:3,score:12,level:"Alto",status:"Pendente de confirmação",cause:"O perfil da organização aciona uma camada de Compliance que precisa ser avaliada.",consequence:"Lacunas podem gerar exposição regulatória, contratual, operacional ou reputacional.",control:"Mapeamento de aplicabilidade a validar.",recommendation:"Executar gap assessment e encaminhar pontos jurídicos aplicáveis para validação.",responsible:"Compliance / Jurídico",created:now(),automatic:true});
-      generatedActions.push({id:uid("ACAO"),riskId:generatedRisks.at(-1).id,title:`Gap assessment — ${f.name}`,description:"Avaliar aplicabilidade, controles, evidências e lacunas.",responsible:"Compliance / Jurídico",priority:"Alto",deadline:"",status:"Pendente de confirmação",evidenceRequired:"Matriz de aplicabilidade e evidências.",automatic:true,created:now()});
-      generatedLegal.push({id:uid("JUR"),riskId:generatedRisks.at(-1).id,title:`Validação jurídica — ${f.name}`,reason:"Framework acionado automaticamente pelo perfil global.",status:"Aguardando confirmação",responsible:"Jurídico",automatic:true,created:now()});
-    });
-    return {risks:generatedRisks,actions:generatedActions,legal:generatedLegal};
+    return assessDiagnostic(questions,answerMap,RISK_LIBRARY,RISK_LEVEL,frameworkAnalysis().selected);
   }
 
 
