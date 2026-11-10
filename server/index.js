@@ -296,7 +296,8 @@ async function runRegulatoryMonitor(){
    const previous=db.prepare("SELECT * FROM regulatory_monitor_snapshots WHERE source_id=?").get(source.id);
    try{
     const current=await probeRegulation(source);
-    const status=compareRegulationSnapshot(previous,current);
+    const detected=compareRegulationSnapshot(previous,current);
+    const status=detected==="UNCHANGED"&&previous?.status==="CONTENT_CHANGED_REVIEW_REQUIRED"?"CONTENT_CHANGED_REVIEW_REQUIRED":detected;
     db.prepare(`INSERT INTO regulatory_monitor_snapshots(source_id,digest,checked_at,changed_at,status,error)
       VALUES(?,?,?,?,?,NULL) ON CONFLICT(source_id) DO UPDATE SET digest=excluded.digest,checked_at=excluded.checked_at,changed_at=excluded.changed_at,status=excluded.status,error=NULL`)
       .run(source.id,current.digest,current.checkedAt,status==="CONTENT_CHANGED_REVIEW_REQUIRED"?current.checkedAt:previous?.changed_at||null,status);
@@ -318,6 +319,18 @@ app.post("/api/regulatory/monitor/run",authenticate,requirePermission("audit:rea
  if(result.error)return res.status(409).json(result);
  audit(req,"REGULATORY_MONITOR_RUN","regulatory","",{count:result.results.length});
  res.json(result);
+});
+app.post("/api/regulatory/monitor/:sourceId/review",authenticate,requirePermission("record:write"),(req,res)=>{
+ const source=MONITOR_SOURCES.find(s=>s.id===req.params.sourceId);
+ if(!source)return res.status(404).json({error:"SOURCE_NOT_FOUND"});
+ const decision=String(req.body?.decision||"");
+ const notes=String(req.body?.notes||"").trim();
+ if(!["REVIEWED","NEEDS_ACTION"].includes(decision)||notes.length<12||notes.length>2000)return res.status(400).json({error:"REVIEW_NOT_VALID"});
+ const snapshot=db.prepare("SELECT * FROM regulatory_monitor_snapshots WHERE source_id=?").get(source.id);
+ if(!snapshot)return res.status(404).json({error:"NO_SNAPSHOT"});
+ db.prepare("UPDATE regulatory_monitor_snapshots SET status=? WHERE source_id=?").run(decision,source.id);
+ audit(req,"REGULATORY_CHANGE_REVIEWED","regulatory",source.id,{decision,notes,sourceDigest:snapshot.digest});
+ res.json({ok:true,sourceId:source.id,status:decision});
 });
 if(process.env.REGULATORY_MONITOR_ENABLED==="true"){
  setTimeout(()=>{runRegulatoryMonitor().catch(e=>console.error("REGULATORY_MONITOR",e.message))},20000);
