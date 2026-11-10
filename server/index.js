@@ -90,7 +90,7 @@ app.use(
   })
 );
 
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json({ limit: "12mb" }));
 
 const id = () => crypto.randomUUID();
 
@@ -338,6 +338,47 @@ if(process.env.REGULATORY_MONITOR_ENABLED==="true"){
  setInterval(()=>{runRegulatoryMonitor().catch(e=>console.error("REGULATORY_MONITOR",e.message))},24*60*60*1000).unref();
 }
 
+db.exec(`
+CREATE TABLE IF NOT EXISTS evidence_files (
+ id TEXT PRIMARY KEY, company_id TEXT NOT NULL, action_id TEXT NOT NULL,
+ name TEXT NOT NULL, mime TEXT NOT NULL, sha256 TEXT NOT NULL,
+ size INTEGER NOT NULL, stored_path TEXT NOT NULL,
+ uploaded_by TEXT NOT NULL, created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_evidence_files_tenant ON evidence_files(company_id,action_id);
+`);
+const evidenceRoot=process.env.EVIDENCE_STORAGE_PATH||(production?"/var/data/evidence":path.resolve("evidence-dev"));
+if(production&&(!path.isAbsolute(evidenceRoot)||!evidenceRoot.startsWith("/var/data/")))throw Error("EVIDENCE_STORAGE_PATH must be under /var/data");
+fs.mkdirSync(evidenceRoot,{recursive:true,mode:0o700});
+app.post("/api/evidence/upload",authenticate,requirePermission("record:write"),(req,res)=>{
+ const {actionId,name,mime,base64}=req.body||{};
+ if(typeof actionId!=="string"||!actionId.trim()||typeof name!=="string"||!name.trim()||name.length>200||typeof base64!=="string"||base64.length>7_000_000)return res.status(400).json({error:"INVALID_UPLOAD"});
+ if(!/^[A-Za-z0-9+/]*={0,2}$/.test(base64))return res.status(400).json({error:"INVALID_BASE64"});
+ const bytes=Buffer.from(base64,"base64");
+ if(!bytes.length||bytes.length>5*1024*1024)return res.status(413).json({error:"FILE_SIZE_LIMIT"});
+ const digest="sha256:"+crypto.createHash("sha256").update(bytes).digest("hex");
+ const fileId=id();
+ const tenantDir=path.join(evidenceRoot,crypto.createHash("sha256").update(req.user.companyId).digest("hex"));
+ fs.mkdirSync(tenantDir,{recursive:true,mode:0o700});
+ const filePath=path.join(tenantDir,fileId);
+ try{
+  fs.writeFileSync(filePath,bytes,{flag:"wx",mode:0o600});
+  db.prepare("INSERT INTO evidence_files(id,company_id,action_id,name,mime,sha256,size,stored_path,uploaded_by,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
+   .run(fileId,req.user.companyId,actionId,name,typeof mime==="string"?mime.slice(0,100):"application/octet-stream",digest,bytes.length,filePath,req.user.sub,now());
+  audit(req,"EVIDENCE_FILE_UPLOADED","evidence",fileId,{actionId,sha256:digest,size:bytes.length});
+  return res.status(201).json({id:fileId,actionId,name,hash:digest,size:bytes.length,uploadedAt:now()});
+ }catch(e){try{fs.unlinkSync(filePath)}catch{}return res.status(500).json({error:"EVIDENCE_STORAGE_FAILED"})}
+});
+app.get("/api/evidence/:id/download",authenticate,requirePermission("record:read"),(req,res)=>{
+ const item=db.prepare("SELECT * FROM evidence_files WHERE id=? AND company_id=?").get(req.params.id,req.user.companyId);
+ if(!item)return res.status(404).json({error:"NOT_FOUND"});
+ if(!fs.existsSync(item.stored_path))return res.status(503).json({error:"EVIDENCE_MISSING"});
+ res.setHeader("Content-Type","application/octet-stream");
+ res.setHeader("Content-Disposition",'attachment; filename="evidence-'+item.id+'"');
+ res.setHeader("X-Content-Type-Options","nosniff");
+ audit(req,"EVIDENCE_FILE_DOWNLOADED","evidence",item.id,{actionId:item.action_id});
+ return res.sendFile(item.stored_path);
+});
 app.post("/api/bootstrap", async (req, res) => {
   const bootstrapSecret = process.env.BOOTSTRAP_SECRET;
   if (!bootstrapSecret || req.get("x-bootstrap-secret") !== bootstrapSecret) {
