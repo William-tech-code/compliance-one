@@ -750,6 +750,8 @@ function AppCore() {
   const remoteRecordIdRef = useRef(null);
   const remoteRecordVersionRef = useRef(null);
   const syncTimerRef = useRef(null);
+  const syncQueueRef = useRef(Promise.resolve());
+  const [versionHistory,setVersionHistory] = useState(null);
 
   useEffect(()=>{
     // Enquanto a sessão/API ainda está sendo identificada, não sobrescrever
@@ -808,26 +810,30 @@ function AppCore() {
   useEffect(()=>{
     if(!apiUser || !hydrationRef.current) return;
     clearTimeout(syncTimerRef.current);
-    syncTimerRef.current=setTimeout(async()=>{
-      try{
-        setApiSyncing(true);
-        const id=remoteRecordIdRef.current;
-        if(id){
-          const updated=await apiPut(`/records/${id}`,s,remoteRecordVersionRef.current);
-          remoteRecordVersionRef.current=updated.version;
-        }else{
-          const created=await apiPost("/records/workspace",s);
-          remoteRecordIdRef.current=created?.id||null;
-          remoteRecordVersionRef.current=1;
-          setRemoteRecordId(created?.id||null);
+    syncTimerRef.current=setTimeout(()=>{
+      const snapshot=s;
+      syncQueueRef.current=syncQueueRef.current.catch(()=>{}).then(async()=>{
+        try{
+          setApiSyncing(true);
+          const id=remoteRecordIdRef.current;
+          if(id){
+            const updated=await apiPut(`/records/${id}`,snapshot,remoteRecordVersionRef.current);
+            remoteRecordVersionRef.current=updated.version;
+          }else{
+            const created=await apiPost("/records/workspace",snapshot);
+            remoteRecordIdRef.current=created?.id||null;
+            remoteRecordVersionRef.current=1;
+            setRemoteRecordId(created?.id||null);
+          }
+          setApiSyncError(false);
+        }catch(err){
+          setApiSyncError(true);
+          console.warn("NEXUS API sync:",err);
+          throw err;
+        }finally{
+          setApiSyncing(false);
         }
-        setApiSyncError(false);
-      }catch(err){
-        setApiSyncError(true);
-        console.warn("NEXUS API sync:",err);
-      }finally{
-        setApiSyncing(false);
-      }
+      });
     },900);
     return ()=>clearTimeout(syncTimerRef.current);
   },[s,apiUser]);
@@ -1134,6 +1140,36 @@ function attach(files,owner,ownerId) {
     w.document.close();
   }
 
+  async function openVersionHistory(){
+    if(!apiUser || !remoteRecordIdRef.current)return notify("Conecte a API para consultar o histórico.");
+    try{
+      await syncQueueRef.current.catch(()=>{});
+      const id=remoteRecordIdRef.current;
+      const result=await apiGet(`/records/${id}/versions`);
+      setVersionHistory({id,versions:result.versions||[],currentVersion:result.currentVersion});
+    }catch(err){notify("Não foi possível consultar o histórico: "+err.message)}
+  }
+  async function restoreRemoteVersion(version){
+    if(!versionHistory || !apiUser)return;
+    if(!window.confirm(`Restaurar os dados da versão ${version}? A restauração será salva como uma NOVA versão, sem excluir o histórico. Continue?`))return;
+    try{
+      await syncQueueRef.current;
+      if(apiSyncError)throw new Error("Existe falha de sincronização pendente.");
+      const latest=await apiGet("/records/workspace");
+      const current=latest.records?.find(r=>r.id===versionHistory.id);
+      if(!current || current.version!==remoteRecordVersionRef.current)throw new Error("Outro usuário alterou os dados. Atualize a página antes de restaurar.");
+      const old=await apiGet(`/records/${versionHistory.id}/versions/${version}`);
+      const payload=old.payload;
+      if(!payload || typeof payload!=="object" || !payload.company || !payload.workflow)throw new Error("Versão inválida.");
+      const restored={...fresh(),...payload,history:[...(payload.history||[]),{id:uid("LOG"),text:`Versão ${version} restaurada para nova revisão.`,date:now()}]};
+      const saved=await apiPut(`/records/${versionHistory.id}`,restored,remoteRecordVersionRef.current);
+      remoteRecordVersionRef.current=saved.version;
+      setS(restored);
+      setVersionHistory(null);
+      setApiSyncError(false);
+      notify(`Versão ${version} restaurada. Nova versão: ${saved.version}.`);
+    }catch(err){setApiSyncError(true);notify("Restauração não concluída: "+err.message)}
+  }
   function exportBackup(){
     const blob=new Blob([JSON.stringify(s,null,2)],{type:"application/json"});
     const url=URL.createObjectURL(blob);
@@ -1185,6 +1221,7 @@ function attach(files,owner,ownerId) {
         <div className="top-actions">
           <button onClick={()=>setModal("company")}>✎ Editar empresa</button>
           <button onClick={exportBackup}>↓ Backup</button>
+          {apiUser && <button onClick={openVersionHistory}>◷ Histórico de versões</button>}
           <label className="top-file">↑ Restaurar<input hidden type="file" accept="application/json,.json" onChange={e=>restoreBackup(e.target.files?.[0])}/></label>
           <button onClick={resetWorkspace}>↺ Reiniciar</button>
           {apiUser
@@ -1194,6 +1231,17 @@ function attach(files,owner,ownerId) {
         </div>
       </header>
 
+      {versionHistory && <section role="dialog" aria-label="Histórico de versões" style={{padding:20,margin:16,border:"1px solid #526b81",borderRadius:12,background:"#10253c",color:"#fff"}}>
+        <h3>Histórico do diagnóstico · versão atual {versionHistory.currentVersion}</h3>
+        <p>Restaurar uma versão antiga cria um novo registro de versão. Nenhum histórico será apagado.</p>
+        <button onClick={()=>setVersionHistory(null)}>Fechar histórico</button>
+        <div style={{maxHeight:260,overflowY:"auto"}}>
+          {versionHistory.versions.map(v=><div key={v.version} style={{display:"flex",gap:12,alignItems:"center",padding:8,borderBottom:"1px solid #30485c"}}>
+            <span>Versão {v.version} · {v.created_at}</span>
+            <button disabled={v.version===versionHistory.currentVersion || apiSyncing || apiSyncError} onClick={()=>restoreRemoteVersion(v.version)}>Restaurar como nova versão</button>
+          </div>)}
+        </div>
+      </section>}
       <div className="content">
         <div className="steps">{steps.map(([k,l],i)=><button key={k} className={`${page===k?"current ":""}${s.workflow[k]?"done":""}`} onClick={()=>go(k)}><b>{s.workflow[k]?"✓":i+1}</b><span>{l}</span></button>)}</div>
 
