@@ -19,7 +19,7 @@ jobs:
       - name: Validate backend syntax
         run: node --check server/index.js
       - name: Validate 800-question sector diagnostics
-        run: node --test tests/enterpriseQuestionBank.test.js tests/diagnosticEngine.test.js
+        run: node --test tests/enterpriseQuestionBank.test.js tests/diagnosticEngine.test.js tests/diagnosticGovernance.test.js
       - name: Build frontend
         run: npm run build
       - name: Check production startup without secrets is rejected
