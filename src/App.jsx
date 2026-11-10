@@ -833,7 +833,7 @@ function AppCore() {
     const vals = questions.map(q=>s.answers[q.id]).filter(v=>v && v!=="N/A");
     const score = vals.reduce((a,v)=>a+(v==="Sim"?1:v==="Parcialmente"?0.5:0),0);
     return Math.round(18 + (score / Math.max(1,vals.length))*82);
-  },[s.answers,questions.length]);
+  },[s.answers,questions]);
 
   const stats = useMemo(()=>{
     const out={total:s.risks.length,Crítico:0,Alto:0,Médio:0,Baixo:0};
@@ -950,9 +950,9 @@ function AppCore() {
     const generatedRisks=[], generatedActions=[], generatedLegal=[], seen=new Set();
     questions.forEach(q=>{
       const a=answerMap[q.id];
-      if(a==="Sim" || a==="N/A") return;
+      if(a!=="Não" && a!=="Parcialmente") return;
       const lib=RISK_LIBRARY[q.key] || RISK_LIBRARY.controls;
-      const uniqueKey=q.key+"|"+a;
+      const uniqueKey=q.area+"|"+q.key+"|"+a;
       if(seen.has(uniqueKey)) return;
       seen.add(uniqueKey);
       const p=a==="Não"?4:3, i=lib.legal?4:3, level=RISK_LEVEL(p,i);
