@@ -11,6 +11,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { buildEnterpriseQuestions } from "./enterpriseQuestionBank";
 import "./App.css";
 import "./NexoraRelease.css";
+import "./NexoraExecutiveSystem.css";
 import { apiGet, apiPost, apiPut, bootstrapCompany, login, logout as apiLogout } from "./api";
 import NexusV125CommandCenter from "./NexusV125CommandCenter";
 import NexusAICommandCenter from "./NexusAICommandCenter";
