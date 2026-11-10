@@ -1,3 +1,4 @@
+import {createAiThrottle} from "./aiThrottle.js";
 import {verifyEvidenceFile,isEvidencePathInsideTenant} from "./evidenceIntegrity.js";
 import {resolveRegulatoryReview} from "./regulatoryReview.js";
 import {validateEvidenceReferences} from "./evidenceGuard.js";
@@ -257,16 +258,18 @@ app.get("/api/health", (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-const aiCalls=new Map();
+const aiThrottle=createAiThrottle();
 app.post("/api/ai/compliance-briefing",authenticate,requirePermission("record:read"),async(req,res)=>{
  const key=process.env.OPENAI_API_KEY;
  if(!key)return res.status(503).json({error:"AI_NOT_CONFIGURED"});
  const model=process.env.OPENAI_MODEL||"gpt-4.1-mini";
  let safe;
  try{safe=validateAiRequest(req.body)}catch(e){return res.status(400).json({error:e.message})}
- const last=aiCalls.get(req.user.sub)||0;
- if(Date.now()-last<15000)return res.status(429).json({error:"AI_RATE_LIMIT"});
- aiCalls.set(req.user.sub,Date.now());
+ const throttle=aiThrottle.check(req.user.sub);
+ if(!throttle.allowed){
+  res.setHeader("Retry-After",String(Math.ceil(throttle.retryAfter/1000)));
+  return res.status(429).json({error:"AI_RATE_LIMIT"});
+ }
  try{
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),15000);
