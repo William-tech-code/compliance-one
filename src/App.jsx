@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { buildEnterpriseQuestions } from "./enterpriseQuestionBank";
 import "./App.css";
 import { apiGet, apiPost, apiPut, bootstrapCompany, login, logout as apiLogout } from "./api";
 import NexusV125CommandCenter from "./NexusV125CommandCenter";
@@ -822,7 +823,7 @@ function AppCore() {
     return ()=>clearTimeout(syncTimerRef.current);
   },[s,apiUser]);
 
-  const questions = useMemo(()=>questionBank(s.company,s.globalProfile),[s.company,s.globalProfile]);
+  const questions = useMemo(()=>buildEnterpriseQuestions(s.company.segment),[s.company.segment]);
   const answered = questions.filter(q=>s.answers[q.id]).length;
   const done = s.workflow;
   const progress = Math.round(Object.values(done).filter(Boolean).length / Object.keys(done).length * 100);
@@ -1436,10 +1437,11 @@ function CompanyPage({s,open}){return <div className="page"><Panel title="Cadast
 function Diagnosis({s,maturity,finish}){return <div className="page"><div className="hero compact"><div><small>NEXUS DIAGNOSTIC ENGINE</small><h1>Diagnóstico de maturidade</h1><p>{s.company.segment} · {s.company.size}</p></div><div className="orb"><b>{maturity}%</b><small>estimativa inicial</small></div></div><Panel title="O que será automatizado" sub="Você não precisará montar manualmente a matriz ou o plano de ação."><div className="auto-grid">{["Questionário setorial","Matriz automática","Causas prováveis","Recomendações","Plano de ação","Triagem jurídica","Relatório executivo"].map(x=><div key={x}><b>✓</b><span>{x}</span></div>)}</div></Panel><Advance title="Etapa 1 · Diagnóstico" text="Perfil carregado. Avance para responder o questionário inteligente." onClick={finish}/></div>}
 
 function Questionnaire({s,questions,answered,answer,finish}){
-  const firstUnanswered=Math.max(0,questions.findIndex(q=>!s.answers[q.id]));
+  const firstUnanswered=(()=>{const n=questions.findIndex(q=>!s.answers[q.id]);return n<0?Math.max(0,questions.length-1):n})();
   const [index,setIndex]=useState(firstUnanswered);
   useEffect(()=>setIndex(firstUnanswered),[s.company.name,s.company.segment,s.company.size,s.globalProfile?.jurisdictions?.join("|"),firstUnanswered]);
 
+  const areas=useMemo(()=>[...new Set(questions.map(item=>item.area))],[questions]);
   const q=questions[Math.min(index,questions.length-1)];
   const value=q ? s.answers[q.id] : null;
   const isLast=index>=questions.length-1;
@@ -1468,6 +1470,14 @@ function Questionnaire({s,questions,answered,answer,finish}){
 
     <div className="q-linear"><i style={{width:pct+"%"}}/></div>
 
+    <div className="q-area-toolbar" style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",margin:"20px 0",padding:"16px",background:"rgba(12,29,49,.9)",border:"1px solid #27445e",borderRadius:16}}>
+      <label htmlFor="diagnostic-area" style={{fontWeight:700}}>Área de avaliação</label>
+      <select id="diagnostic-area" value={q?.area||""} onChange={e=>{const next=questions.findIndex(item=>item.area===e.target.value);if(next>=0)setIndex(next)}} style={{minWidth:240,maxWidth:"100%",padding:12,borderRadius:10,background:"#10253c",color:"#fff",border:"1px solid #35526d"}}>
+        {areas.map(area=><option key={area} value={area}>{area} ({questions.filter(item=>item.area===area&&s.answers[item.id]).length}/25)</option>)}
+      </select>
+      <span style={{color:"#9db5ce"}}>32 áreas · 25 verificações por área · 800 perguntas por ramo</span>
+      <button className="secondary" onClick={()=>setIndex(firstUnanswered)}>Continuar de onde parei</button>
+    </div>
     {q && <section className="single-question-card" key={q.id}>
       <div className="q-meta"><span>PERGUNTA {index+1} DE {questions.length}</span><b>{q.area}</b></div>
       <div className="q-number">{String(index+1).padStart(2,"0")}</div>
