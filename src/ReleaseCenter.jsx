@@ -16,7 +16,7 @@ export default function ReleaseCenter(){
     const response=await fetch("/release-version.json?t="+Date.now(),{cache:"no-store"});
     if(!response.ok)return;
     const data=await response.json();
-    if(active&&/^\\d+\\.\\d+\\.\\d+$/.test(data.version)&&compare(data.version,CURRENT_RELEASE)>0)setLatest(data.version);
+    if(active&&/^\d+\.\d+\.\d+$/.test(data.version)&&compare(data.version,CURRENT_RELEASE)>0)setLatest(data.version);
    }catch{/* No notification on connectivity failures. */}
   }
   check();
@@ -24,18 +24,18 @@ export default function ReleaseCenter(){
   return()=>{active=false;clearInterval(timer)};
  },[]);
  const newer=compare(latest,CURRENT_RELEASE)>0;
- const visible=newer||!read;
+ const visible=true;
  const current=RELEASE_HISTORY.find(item=>item.version===selected)||RELEASE_HISTORY[0];
  const markRead=()=>{
   try{localStorage.setItem(key(CURRENT_RELEASE),"yes")}catch{}
   setRead(true);setOpen(false);
  };
  return <div style={{margin:"12px 16px"}}>
-  {visible&&<section role="status" style={{padding:16,border:"1px solid #526b81",borderRadius:12}}>
-   <strong>{newer?"Nova versão disponível: "+latest:"O que mudou no Compliance One "+CURRENT_RELEASE}</strong>
-   <p>{newer?"Uma nova versão foi publicada. Recarregue para receber a interface atualizada.":"Consulte o relatório detalhado das alterações realmente entregues nesta versão."}</p>
+  {visible&&<section role="region" aria-label="Central de atualizações" style={{padding:16,border:"1px solid #526b81",borderRadius:12}}>
+   <strong>{newer?"Nova versão disponível: "+latest:"NEXORA Update Center · Versão "+CURRENT_RELEASE}</strong>
+   <p>{newer?"Uma nova versão foi publicada. Recarregue para receber a interface atualizada.":"Consulte o que mudou, o que foi corrigido e os benefícios de cada versão. "+(read?"Histórico disponível para consulta.":"Novidades ainda não lidas.")}</p>
    <button onClick={()=>newer?window.location.reload():setOpen(true)}>{newer?"Atualizar agora":"Ver alterações detalhadas"}</button>
-   {!newer&&<button style={{marginLeft:12}} onClick={markRead}>Marcar como lido</button>}
+   {!newer&&!read&&<button style={{marginLeft:12}} onClick={markRead}>Marcar como lido</button>}
   </section>}
   <button style={{marginTop:8}} onClick={()=>setOpen(true)}>Histórico detalhado de atualizações</button>
   {open&&<section role="dialog" aria-modal="true" aria-label="Histórico de atualizações" style={{position:"fixed",inset:0,zIndex:99999,background:"rgba(4,12,22,.96)",overflowY:"auto",padding:"min(5vw,40px)",color:"#f2f6fc"}}>
