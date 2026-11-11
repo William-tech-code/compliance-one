@@ -49,3 +49,16 @@ button:not(:disabled):active{transform:translateY(1px)}
 .nx50-new-version{position:fixed;bottom:22px;right:22px;z-index:5000;display:flex;align-items:center;gap:16px;background:#092b3b;color:#eefbfb;border:1px solid #4aafb2;border-radius:14px;padding:12px 15px;box-shadow:0 12px 50px #0007;font-size:12px}.nx50-new-version button{background:#7fe7d9;color:#062732;border:0;padding:9px 12px;border-radius:9px;font-size:11px;font-weight:800}
 @media(max-width:670px){.nx50-release-backdrop{padding:8px}.nx50-release-dialog{border-radius:17px;max-height:calc(100dvh - 16px)}.nx50-release-brand{padding:18px 21px 0;font-size:13px}.nx50-release-emblem{width:37px;height:37px}.nx50-release-close{top:17px;right:14px}.nx50-release-main{padding:22px 23px 26px}.nx50-release-features{grid-template-columns:1fr;gap:8px}.nx50-release-features article{min-height:auto;padding:13px}.nx50-release-main>p{font-size:12px}.nx50-release-footer{align-items:stretch}.nx50-release-primary,.nx50-release-secondary{width:100%;justify-content:center}.nx50-new-version{left:10px;right:10px;bottom:10px;flex-wrap:wrap}}
 @media(prefers-reduced-motion:reduce){.nx50-release-backdrop,.nx50-release-dialog,.nx50-release-label i{animation:none!important}}
+
+
+/* V50 FIX: sidebar items must never render underneath the security footer. */
+@media(min-width:761px){
+  .app aside{display:flex;flex-direction:column;height:100dvh;max-height:100dvh;overflow:hidden}
+  .app aside>.brand,.app aside>.company{flex:0 0 auto}
+  .app aside>nav{flex:1 1 auto;min-height:0;max-height:none;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding-bottom:15px;scrollbar-gutter:stable}
+  .app aside>.nexora-sidebar-footer{position:relative;inset:auto;left:auto;right:auto;bottom:auto;flex:0 0 auto;margin-top:12px;z-index:1}
+}
+@media(max-width:760px){
+  .app aside>.nexora-sidebar-footer{position:static;inset:auto;margin-top:14px}
+  .app aside>nav{overflow:visible;max-height:none}
+}
