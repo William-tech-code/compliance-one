@@ -1,0 +1,24 @@
+name: Compliance One validation
+on:
+  pull_request:
+    branches: [release/compliance-one-render-hardening]
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Run automated tests
+        run: npm test
+      - name: Build frontend
+        run: npm run build
+      - name: Verify release manifest
+        run: |
+          node --input-type=module -e "import fs from 'node:fs'; const m=JSON.parse(fs.readFileSync('public/release-version.json')); const h=fs.readFileSync('src/releaseHistory.js','utf8'); if(!h.includes('CURRENT_RELEASE = \"'+m.version+'\"')) process.exit(1); console.log('Release manifest verified:',m.version)"
