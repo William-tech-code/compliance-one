@@ -11,6 +11,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { buildEnterpriseQuestions } from "./enterpriseQuestionBank";
 import "./App.css";
 import "./NexoraRelease.css";
+import ReleaseCenter from "./ReleaseCenter";
 import "./NexoraExecutiveSystem.css";
 import { apiGet, apiPost, apiPut, bootstrapCompany, login, logout as apiLogout } from "./api";
 import NexusV125CommandCenter from "./NexusV125CommandCenter";
@@ -1224,7 +1225,11 @@ function attach(files,owner,ownerId) {
 
   const enterExperience=()=>{ try { sessionStorage.setItem("nexus-entry-v119","1"); } catch {} setS(prev=>({...prev,firstAccess:false,history:[...(prev.history||[]),{id:uid("LOG"),text:"Experiência inteligente iniciada.",date:now()}]})); setPage("empresa"); setShowEntry(false); };
   const enterDemo=()=>{ try { sessionStorage.setItem("nexus-entry-v119","1"); } catch {} const demo={name:"Empresa Demo NEXUS",document:"TESTE-0001",segment:"Supermercados / Varejo",size:"Média empresa",city:"São Paulo / SP",mode:"SaaS + Assessoria",responsible:"Usuário Teste",director:"Diretor Demo"}; setS(prev=>({...prev,firstAccess:false,company:demo,workflow:{...prev.workflow,empresa:true},history:[...(prev.history||[]),{id:uid("LOG"),text:"Ambiente DEMO iniciado.",date:now()}]})); setPage("diagnostico"); setShowEntry(false); };
-  if (showEntry) return <FirstAccess onStart={enterExperience} onDemo={enterDemo}/>;
+  // Production is private by default: no local/demo workspace without a verified API session.
+  if(apiLoading) return <div className="app" style={{display:"grid",placeItems:"center",minHeight:"100vh",padding:24}}><div role="status">Validando acesso seguro ao Compliance One...</div></div>;
+  if(!apiUser) return <div className="app" style={{display:"grid",placeItems:"center",minHeight:"100vh",padding:24}}><div style={{width:"min(100%,520px)"}}><h1>NEXORA · COMPLIANCE ONE</h1><p>Ambiente privado. Entre com sua conta autorizada para acessar a plataforma.</p><AuthModal close={()=>{}} onLogin={handleApiLogin} onBootstrap={handleApiBootstrap}/></div></div>;
+  // FirstAccess/demo is intentionally not reachable in authenticated production.
+
 
   return <div className="app">
     <aside>
@@ -1280,6 +1285,7 @@ function attach(files,owner,ownerId) {
         <p>{operationalActions.total} ações registradas no novo fluxo · {operationalActions.overdue} vencidas · {operationalActions.pendingValidation} aguardando validação independente · {operationalActions.completed} concluídas</p>
         <small>Indicadores das ações do fluxo de evidências; não incluem ações legadas até sua migração.</small>
       </section>}
+      <ReleaseCenter/>
       <div className="content">
         <div className="steps">{steps.map(([k,l],i)=><button key={k} className={`${page===k?"current ":""}${s.workflow[k]?"done":""}`} onClick={()=>go(k)}><b>{s.workflow[k]?"✓":i+1}</b><span>{l}</span></button>)}</div>
 
