@@ -4,3 +4,13 @@
 @media(max-width:480px){.metrics,.app nav,.command-grid,.command-kpis,.premium-kpis,.grid-info,.doc-grid,.philosophy-grid,.framework-grid,.q-options,.role-grid,.readiness-grid{grid-template-columns:1fr}.hero h1,.module-hero h1{font-size:24px}.premium-topbar h1{font-size:27px}.premium-kpis{grid-template-columns:1fr}.q-option{min-height:72px}.single-question-card{padding:20px}.ai-copy h1{font-size:32px}.ai-copy{padding-top:46vh}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media print{.app aside,.app main>header,.steps,.top-actions,.toast,.loading,button,input,select{display:none!important}.app main{margin:0;width:100%}.content{padding:0}.panel,.hero{box-shadow:none;border:1px solid #ddd;background:#fff;color:#111}.metric{background:#f5f5f5;color:#111}}
+
+
+/* V46 — refinamento visual progressivo sem alterar a estrutura existente */
+:root{--nexora-focus:#55c8f4;--nexora-surface:rgba(15,28,48,.92)}
+button,a,input,select,textarea{transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--nexora-focus);outline-offset:3px}
+button:not(:disabled):active{transform:translateY(1px)}
+.panel,.metric,.company{box-shadow:0 8px 28px rgba(0,0,0,.12)}
+.app nav button.active{box-shadow:inset 3px 0 0 #5acff5}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}

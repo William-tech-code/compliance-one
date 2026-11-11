@@ -1,0 +1,42 @@
+/* Scoped executive dashboard polish. No changes to data or workflows. */
+.nx-executive-panel,.nx-governance-panel{margin:16px;min-width:0;padding:clamp(18px,2.4vw,30px);border:1px solid #29485f;border-radius:22px;background:linear-gradient(145deg,rgba(19,42,61,.9),rgba(7,21,37,.97) 55%);box-shadow:0 18px 44px #0003;color:#e9f6ff}
+.nx-executive-panel h2,.nx-governance-panel h2{font-size:clamp(21px,2vw,28px);line-height:1.2;letter-spacing:-.03em;margin:0 0 12px}
+.nx-executive-panel h3{font-size:clamp(17px,1.5vw,21px);letter-spacing:-.02em;margin:0 0 18px}
+.nx-executive-panel p,.nx-governance-panel p{line-height:1.6}
+.nx-executive-panel button,.nx-governance-panel button{appearance:none;min-height:42px;border:1px solid #37647b;border-radius:11px;padding:10px 16px;background:linear-gradient(135deg,#143f52,#102b40);color:#d9f7ff;font-size:13px;font-weight:650;letter-spacing:.01em;box-shadow:inset 0 1px #fff1;transition:background .2s,border-color .2s,box-shadow .2s,transform .2s}
+.nx-executive-panel button:not(:disabled):hover,.nx-governance-panel button:not(:disabled):hover{background:linear-gradient(135deg,#17576b,#143a55);border-color:#61d5e6;box-shadow:0 6px 22px #09c8ef23;transform:translateY(-1px)}
+.nx-governance-panel .nx-primary-action{background:linear-gradient(110deg,#6be6d9,#46bedd);color:#052637;border-color:#77e9e5;font-weight:800}
+.nx-governance-panel .nx-primary-action:not(:disabled):hover{background:linear-gradient(110deg,#99f1db,#6fd9f4);color:#052637}
+.nx-executive-panel input,.nx-executive-panel select,.nx-governance-panel input,.nx-governance-panel select,.nx-governance-panel textarea{appearance:auto;min-height:46px;min-width:0;width:100%;padding:11px 14px;border:1px solid #30536b;border-radius:11px;background:#0b2739;color:#edfaff;font-size:14px;line-height:1.3;outline:none;color-scheme:dark}
+.nx-executive-panel input:focus,.nx-executive-panel select:focus,.nx-governance-panel input:focus,.nx-governance-panel select:focus{border-color:#72e5de;box-shadow:0 0 0 3px #3fe4da22}
+.nx-executive-panel input::placeholder,.nx-governance-panel input::placeholder{color:#9bb5c6;opacity:1}
+.nx-executive-panel select{width:auto;margin:8px 0}
+.nx-executive-panel>div>div[style*="minmax(250px"]>div{min-width:0}
+.nx-executive-panel>div>div[style*="minmax(250px"]>div>button{margin-top:15px}
+.nx-executive-panel details{border-top:1px solid #29455b;padding-top:15px;color:#c2d9e9}
+.nx-executive-panel summary,.nx-governance-panel summary{cursor:pointer;color:#bfe5f4;font-size:14px;font-weight:650}
+.nx-governance-panel>p{color:#a9c4d5;font-size:14px}
+.nx-governance-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:18px 0 22px}
+.nx-governance-stats span{padding:14px;border:1px solid #294e64;border-radius:12px;background:#0b2739;color:#adc8d9;font-size:12px}
+.nx-governance-stats strong{display:block;color:#effdff;font-size:22px;margin-bottom:4px;font-variant-numeric:tabular-nums}
+.nx-governance-form{display:grid;grid-template-columns:minmax(190px,1.6fr) repeat(2,minmax(140px,1fr)) minmax(145px,.8fr);gap:12px;align-items:stretch}
+.nx-governance-form input[aria-label="Descrição"]{grid-column:span 2}
+.nx-governance-form .nx-primary-action{grid-column:span 2}
+.nx-form-error{padding:12px 14px;border:1px solid #ef7288;border-radius:10px;background:#461d2a;color:#ffe8ed!important}
+.nx-governance-record{padding:18px;margin-top:14px;border:1px solid #2c4d62;border-radius:14px;background:#0b2435}
+.nx-governance-record strong{font-size:15px}
+.nx-governance-record-actions{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0}
+.nx-governance-panel button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:1050px){.nx-governance-form{grid-template-columns:repeat(2,minmax(0,1fr))}.nx-governance-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.nx-executive-panel,.nx-governance-panel{margin:10px 0;padding:17px;border-radius:16px}.nx-governance-form{grid-template-columns:1fr}.nx-governance-form input[aria-label="Descrição"],.nx-governance-form .nx-primary-action{grid-column:auto}.nx-executive-panel button,.nx-governance-panel button{width:100%}.nx-executive-panel select{max-width:100%}.nx-governance-stats{gap:8px}.nx-governance-record-actions{flex-direction:column}}
+@media(prefers-reduced-motion:reduce){.nx-executive-panel button,.nx-governance-panel button{transition:none!important}}
+/* Public whistleblower links are long tokens; never clip the usable value. */
+.nx-ethics-page .secure-note.nx-ethics-access{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;padding:16px 18px;background:linear-gradient(120deg,#122b44,#172342);border:1px solid #315b77;border-radius:13px;color:#d6e9f8;font-size:13px}
+.nx-ethics-access a{color:#8fe8f5;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere;word-break:break-word;flex:1 1 280px;min-width:0;line-height:1.6}
+.nx-ethics-access button{flex:0 0 auto;min-height:42px;border:1px solid #3d7588;border-radius:10px;padding:10px 17px;background:#154154;color:#e5fcff;font-size:13px;font-weight:700}
+.nx-ethics-access button:hover{background:#1b5b70;border-color:#72dce8}
+.nx-ethics-identity{min-width:0;display:grid;gap:5px;overflow-wrap:anywhere}
+.nx-ethics-identity b{font-size:14px;color:#f2f9ff}
+.nx-ethics-identity span{font-size:12px;color:#90ead3}
+.nx-ethics-page .panel{min-width:0}
+@media(max-width:650px){.nx-ethics-page .secure-note.nx-ethics-access{align-items:stretch;flex-direction:column}.nx-ethics-access a{flex:auto}.nx-ethics-access button{width:100%}}

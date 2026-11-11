@@ -1,3 +1,13 @@
+import {createAiThrottle} from "./aiThrottle.js";
+import {verifyEvidenceFile,isEvidencePathInsideTenant} from "./evidenceIntegrity.js";
+import {resolveRegulatoryReview} from "./regulatoryReview.js";
+import {validateEvidenceReferences} from "./evidenceGuard.js";
+import {validateGovernanceMutation} from "./governanceGuard.js";
+import {validateCorrectiveActionMutation} from "./correctiveActionGuard.js";
+import {MONITOR_SOURCES,probeRegulation,compareRegulationSnapshot} from "./regulatoryMonitor.js";
+import {validateAiRequest,buildAiMessages} from "./aiSafety.js";
+import {configureWhistleblower} from "./whistleblower.js";
+import {createLoginProtection} from "./loginProtection.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -5,14 +15,23 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import Database from "better-sqlite3";
 import crypto from "node:crypto";
+import path from "node:path";
+import fs from "node:fs";
 
 const app = express();
 
 const PORT = Number(process.env.PORT || 8787);
-const JWT_SECRET =
-  process.env.JWT_SECRET || "NEXUS_DEV_SECRET_CHANGE_BEFORE_PRODUCTION";
-
-const db = new Database("nexus.sqlite");
+const production = process.env.NODE_ENV === "production";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET.length < 32) {
+  throw new Error("JWT_SECRET must be configured with at least 32 characters");
+}
+const dbPath = process.env.DATABASE_PATH || "nexus.sqlite";
+if (production && !path.isAbsolute(dbPath)) {
+  throw new Error("DATABASE_PATH must be an absolute persistent path in production");
+}
+fs.mkdirSync(path.dirname(path.resolve(dbPath)), { recursive: true });
+const db = new Database(dbPath);
 
 db.pragma("journal_mode = WAL");
 
@@ -56,22 +75,34 @@ CREATE TABLE IF NOT EXISTS records (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS record_versions (
+  record_id TEXT NOT NULL,
+  company_id TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  payload TEXT NOT NULL,
+  changed_by TEXT,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (record_id, company_id, version)
+);
+CREATE INDEX IF NOT EXISTS idx_record_versions_company ON record_versions(company_id, record_id, version);
+
 `);
 
 app.use(helmet());
 
 app.use(
   cors({
-    origin: true,
-    credentials: true,
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",").map(x => x.trim()) : false,
+    credentials: false,
   })
 );
 
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json({ limit: "12mb" }));
 
 const id = () => crypto.randomUUID();
 
 const now = () => new Date().toISOString();
+const loginProtection = createLoginProtection();
 
 function createToken(user) {
   return jwt.sign(
@@ -101,7 +132,18 @@ function authenticate(req, res, next) {
   const token = authorization.substring(7);
 
   try {
-    req.user = jwt.verify(token, JWT_SECRET);
+    const claims = jwt.verify(token, JWT_SECRET);
+    const current = db.prepare("SELECT id, company_id, name, email, role, active FROM users WHERE id = ? AND company_id = ?").get(claims.sub, claims.companyId);
+    if (!current || current.active !== 1) {
+      return res.status(401).json({ error: "SESSION_REVOKED" });
+    }
+    req.user = {
+      sub: current.id,
+      companyId: current.company_id,
+      name: current.name,
+      email: current.email,
+      role: current.role
+    };
     next();
   } catch {
     return res.status(401).json({
@@ -146,6 +188,7 @@ const permissions = {
   Colaborador: [
     "record:read",
   ],
+  "Equipe de Apuração": [],
 };
 
 function requirePermission(permission) {
@@ -192,6 +235,8 @@ function audit(req, action, entity = "", entityId = "", metadata = {}) {
   );
 }
 
+configureWhistleblower({app,db,authenticate,audit});
+
 /*
 |--------------------------------------------------------------------------
 | HEALTH CHECK
@@ -213,7 +258,175 @@ app.get("/api/health", (req, res) => {
 |--------------------------------------------------------------------------
 */
 
+const aiThrottle=createAiThrottle();
+app.post("/api/ai/compliance-briefing",authenticate,requirePermission("record:read"),async(req,res)=>{
+ const key=process.env.OPENAI_API_KEY;
+ if(!key)return res.status(503).json({error:"AI_NOT_CONFIGURED"});
+ const model=process.env.OPENAI_MODEL||"gpt-4.1-mini";
+ let safe;
+ try{safe=validateAiRequest(req.body)}catch(e){return res.status(400).json({error:e.message})}
+ const throttle=aiThrottle.check(req.user.sub);
+ if(!throttle.allowed){
+  res.setHeader("Retry-After",String(Math.ceil(throttle.retryAfter/1000)));
+  return res.status(429).json({error:"AI_RATE_LIMIT"});
+ }
+ try{
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),15000);
+  let response;
+  try{
+   response=await fetch("https://api.openai.com/v1/chat/completions",{
+    method:"POST",signal:controller.signal,
+    headers:{"Authorization":"Bearer "+key,"Content-Type":"application/json"},
+    body:JSON.stringify({model,messages:buildAiMessages(safe),max_completion_tokens:700,store:false})
+   });
+  }finally{clearTimeout(timer)}
+  if(!response.ok)return res.status(502).json({error:"AI_PROVIDER_UNAVAILABLE"});
+  const data=await response.json();
+  const answer=data?.choices?.[0]?.message?.content;
+  if(typeof answer!=="string"||!answer.trim())return res.status(502).json({error:"AI_EMPTY_RESPONSE"});
+  audit(req,"AI_BRIEFING_REQUESTED","ai","",{model,questionLength:safe.question.length});
+  return res.json({answer:answer.slice(0,5000),model,legalReviewRequired:true,liveLegalUpdate:false});
+ }catch(e){return res.status(502).json({error:"AI_PROVIDER_UNAVAILABLE"})}
+});
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS regulatory_monitor_snapshots (
+ source_id TEXT PRIMARY KEY,
+ digest TEXT NOT NULL,
+ checked_at TEXT NOT NULL,
+ changed_at TEXT,
+ status TEXT NOT NULL,
+ error TEXT
+);
+`);
+db.exec(`
+CREATE TABLE IF NOT EXISTS regulatory_tenant_reviews (
+ company_id TEXT NOT NULL,
+ source_id TEXT NOT NULL,
+ digest TEXT NOT NULL,
+ decision TEXT NOT NULL,
+ notes TEXT NOT NULL,
+ reviewed_by TEXT NOT NULL,
+ reviewed_at TEXT NOT NULL,
+ PRIMARY KEY(company_id,source_id,digest)
+);
+CREATE INDEX IF NOT EXISTS idx_regulatory_tenant_reviews ON regulatory_tenant_reviews(company_id,source_id);
+`);
+let monitoring=false;
+async function runRegulatoryMonitor(){
+ if(monitoring)return {error:"MONITOR_BUSY"};
+ monitoring=true;
+ const results=[];
+ try{
+  for(const source of MONITOR_SOURCES){
+   const previous=db.prepare("SELECT * FROM regulatory_monitor_snapshots WHERE source_id=?").get(source.id);
+   try{
+    const current=await probeRegulation(source);
+    const detected=compareRegulationSnapshot(previous,current);
+    const status=detected==="UNCHANGED"&&previous?.status==="CONTENT_CHANGED_REVIEW_REQUIRED"?"CONTENT_CHANGED_REVIEW_REQUIRED":detected;
+    db.prepare(`INSERT INTO regulatory_monitor_snapshots(source_id,digest,checked_at,changed_at,status,error)
+      VALUES(?,?,?,?,?,NULL) ON CONFLICT(source_id) DO UPDATE SET digest=excluded.digest,checked_at=excluded.checked_at,changed_at=excluded.changed_at,status=excluded.status,error=NULL`)
+      .run(source.id,current.digest,current.checkedAt,status==="CONTENT_CHANGED_REVIEW_REQUIRED"?current.checkedAt:previous?.changed_at||null,status);
+    results.push({sourceId:source.id,status,checkedAt:current.checkedAt});
+   }catch(e){
+    results.push({sourceId:source.id,status:"CHECK_FAILED",error:String(e.message).slice(0,100)});
+    if(previous)db.prepare("UPDATE regulatory_monitor_snapshots SET error=? WHERE source_id=?").run(String(e.message).slice(0,100),source.id);
+   }
+  }
+  return {results,legalValidityVerified:false};
+ }finally{monitoring=false}
+}
+app.get("/api/regulatory/monitor",authenticate,requirePermission("record:read"),(req,res)=>{
+ const snapshots=db.prepare("SELECT source_id,digest,checked_at,changed_at,status,error FROM regulatory_monitor_snapshots").all();
+ const reviews=db.prepare("SELECT source_id,digest,decision,reviewed_at FROM regulatory_tenant_reviews WHERE company_id=?").all(req.user.companyId);
+ res.json({sources:MONITOR_SOURCES.map(x=>{
+  const snapshot=snapshots.find(s=>s.source_id===x.id)||null;
+  return {...x,snapshot:resolveRegulatoryReview(snapshot,reviews)};
+ }),legalValidityVerified:false});
+});
+app.post("/api/regulatory/monitor/run",authenticate,requirePermission("audit:read"),async(req,res)=>{
+ const result=await runRegulatoryMonitor();
+ if(result.error)return res.status(409).json(result);
+ audit(req,"REGULATORY_MONITOR_RUN","regulatory","",{count:result.results.length});
+ res.json(result);
+});
+app.post("/api/regulatory/monitor/:sourceId/review",authenticate,requirePermission("record:write"),(req,res)=>{
+ const source=MONITOR_SOURCES.find(s=>s.id===req.params.sourceId);
+ if(!source)return res.status(404).json({error:"SOURCE_NOT_FOUND"});
+ const decision=String(req.body?.decision||"");
+ const notes=String(req.body?.notes||"").trim();
+ if(!["REVIEWED","NEEDS_ACTION"].includes(decision)||notes.length<12||notes.length>2000)return res.status(400).json({error:"REVIEW_NOT_VALID"});
+ const snapshot=db.prepare("SELECT * FROM regulatory_monitor_snapshots WHERE source_id=?").get(source.id);
+ if(!snapshot)return res.status(404).json({error:"NO_SNAPSHOT"});
+ db.prepare(`INSERT INTO regulatory_tenant_reviews(company_id,source_id,digest,decision,notes,reviewed_by,reviewed_at)
+ VALUES(?,?,?,?,?,?,?) ON CONFLICT(company_id,source_id,digest) DO UPDATE SET decision=excluded.decision,notes=excluded.notes,reviewed_by=excluded.reviewed_by,reviewed_at=excluded.reviewed_at`)
+ .run(req.user.companyId,source.id,snapshot.digest,decision,notes,req.user.sub,now());
+ audit(req,"REGULATORY_CHANGE_REVIEWED","regulatory",source.id,{decision,notes,sourceDigest:snapshot.digest});
+ res.json({ok:true,sourceId:source.id,status:decision});
+});
+if(process.env.REGULATORY_MONITOR_ENABLED==="true"){
+ setTimeout(()=>{runRegulatoryMonitor().catch(e=>console.error("REGULATORY_MONITOR",e.message))},20000);
+ setInterval(()=>{runRegulatoryMonitor().catch(e=>console.error("REGULATORY_MONITOR",e.message))},24*60*60*1000).unref();
+}
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS evidence_files (
+ id TEXT PRIMARY KEY, company_id TEXT NOT NULL, action_id TEXT NOT NULL,
+ name TEXT NOT NULL, mime TEXT NOT NULL, sha256 TEXT NOT NULL,
+ size INTEGER NOT NULL, stored_path TEXT NOT NULL,
+ uploaded_by TEXT NOT NULL, created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_evidence_files_tenant ON evidence_files(company_id,action_id);
+`);
+const evidenceRoot=process.env.EVIDENCE_STORAGE_PATH||(production?"/var/data/evidence":path.resolve("evidence-dev"));
+if(production&&(!path.isAbsolute(evidenceRoot)||!evidenceRoot.startsWith("/var/data/")))throw Error("EVIDENCE_STORAGE_PATH must be under /var/data");
+fs.mkdirSync(evidenceRoot,{recursive:true,mode:0o700});
+app.post("/api/evidence/upload",authenticate,requirePermission("record:write"),(req,res)=>{
+ const {actionId,name,mime,base64}=req.body||{};
+ if(typeof actionId!=="string"||!actionId.trim()||typeof name!=="string"||!name.trim()||name.length>200||typeof base64!=="string"||base64.length>7_000_000)return res.status(400).json({error:"INVALID_UPLOAD"});
+ if(!/^[A-Za-z0-9+/]*={0,2}$/.test(base64))return res.status(400).json({error:"INVALID_BASE64"});
+ const actionExists=db.prepare("SELECT payload FROM records WHERE company_id=? AND type='workspace'").all(req.user.companyId).some(row=>{
+  try{return (JSON.parse(row.payload).correctiveActions||[]).some(a=>a.id===actionId&&!["CONCLUÍDA","CANCELADA"].includes(a.status))}catch{return false}
+ });
+ if(!actionExists)return res.status(404).json({error:"ACTION_NOT_FOUND"});
+ const bytes=Buffer.from(base64,"base64");
+ if(!bytes.length||bytes.length>5*1024*1024)return res.status(413).json({error:"FILE_SIZE_LIMIT"});
+ const digest="sha256:"+crypto.createHash("sha256").update(bytes).digest("hex");
+ const fileId=id();
+ const tenantDir=path.join(evidenceRoot,crypto.createHash("sha256").update(req.user.companyId).digest("hex"));
+ fs.mkdirSync(tenantDir,{recursive:true,mode:0o700});
+ const filePath=path.join(tenantDir,fileId);
+ try{
+  fs.writeFileSync(filePath,bytes,{flag:"wx",mode:0o600});
+  db.prepare("INSERT INTO evidence_files(id,company_id,action_id,name,mime,sha256,size,stored_path,uploaded_by,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
+   .run(fileId,req.user.companyId,actionId,name,typeof mime==="string"?mime.slice(0,100):"application/octet-stream",digest,bytes.length,filePath,req.user.sub,now());
+  audit(req,"EVIDENCE_FILE_UPLOADED","evidence",fileId,{actionId,sha256:digest,size:bytes.length});
+  return res.status(201).json({id:fileId,actionId,name,hash:digest,size:bytes.length,uploadedAt:now()});
+ }catch(e){try{fs.unlinkSync(filePath)}catch{}return res.status(500).json({error:"EVIDENCE_STORAGE_FAILED"})}
+});
+app.get("/api/evidence/:id/download",authenticate,requirePermission("record:read"),(req,res)=>{
+ const item=db.prepare("SELECT * FROM evidence_files WHERE id=? AND company_id=?").get(req.params.id,req.user.companyId);
+ if(!item)return res.status(404).json({error:"NOT_FOUND"});
+ if(!fs.existsSync(item.stored_path))return res.status(503).json({error:"EVIDENCE_MISSING"});
+ if(!isEvidencePathInsideTenant(item.stored_path,evidenceRoot,req.user.companyId)||!verifyEvidenceFile(item.stored_path,item.sha256,item.size)){
+  audit(req,"EVIDENCE_INTEGRITY_FAILED","evidence",item.id,{actionId:item.action_id});
+  return res.status(409).json({error:"EVIDENCE_INTEGRITY_FAILED"});
+ }
+ res.setHeader("Content-Type","application/octet-stream");
+ res.setHeader("Content-Disposition",'attachment; filename="evidence-'+item.id+'"');
+ res.setHeader("X-Content-Type-Options","nosniff");
+ audit(req,"EVIDENCE_FILE_DOWNLOADED","evidence",item.id,{actionId:item.action_id});
+ return res.sendFile(item.stored_path);
+});
 app.post("/api/bootstrap", async (req, res) => {
+  const bootstrapSecret = process.env.BOOTSTRAP_SECRET;
+  if (!bootstrapSecret || req.get("x-bootstrap-secret") !== bootstrapSecret) {
+    return res.status(403).json({ error: "BOOTSTRAP_DISABLED" });
+  }
+  if (db.prepare("SELECT COUNT(*) AS count FROM companies").get().count > 0) {
+    return res.status(409).json({ error: "ALREADY_INITIALIZED" });
+  }
   const {
     companyName,
     segment = "",
@@ -332,6 +545,16 @@ app.post("/api/login", async (req, res) => {
     password,
   } = req.body || {};
 
+  if(typeof email!=="string"||typeof password!=="string"||email.length>254||password.length>1024){
+    return res.status(400).json({error:"CREDENCIAIS_INVALIDAS"});
+  }
+
+  const attempt=loginProtection.check(req.ip,email);
+  if(!attempt.allowed){
+    res.setHeader("Retry-After",String(attempt.retryAfter));
+    return res.status(429).json({error:"MUITAS_TENTATIVAS_AGUARDE"});
+  }
+
   const user = db
     .prepare(`
       SELECT *
@@ -339,9 +562,10 @@ app.post("/api/login", async (req, res) => {
       WHERE email = ?
       AND active = 1
     `)
-    .get((email || "").toLowerCase());
+    .get(email.trim().toLowerCase());
 
   if (!user) {
+    loginProtection.failure(attempt.key);
     return res.status(401).json({
       error: "INVALID_CREDENTIALS",
     });
@@ -353,6 +577,7 @@ app.post("/api/login", async (req, res) => {
   );
 
   if (!validPassword) {
+    loginProtection.failure(attempt.key);
     return res.status(401).json({
       error: "INVALID_CREDENTIALS",
     });
@@ -369,6 +594,8 @@ app.post("/api/login", async (req, res) => {
       WHERE id = ?
     `)
     .get(user.company_id);
+
+  loginProtection.success(attempt.key);
 
   res.json({
     token: createToken(user),
@@ -486,6 +713,12 @@ app.post(
       return res.status(400).json({
         error: "MISSING_FIELDS",
       });
+    }
+    if((role==="Equipe de Apuração"||role==="Administrador") && req.user.role!=="Administrador"){
+      return res.status(403).json({error:"PERFIL_PRIVILEGIADO_REQUER_ADMINISTRADOR"});
+    }
+    if(typeof password!=="string"||password.length<12){
+      return res.status(400).json({error:"PASSWORD_MIN_12"});
     }
 
     const userId = id();
@@ -617,6 +850,13 @@ app.post(
   authenticate,
   requirePermission("record:write"),
   (req, res) => {
+    if(req.params.type==="workspace"){
+      try{
+        validateCorrectiveActionMutation({},req.body||{},req.user.email);
+        validateGovernanceMutation({},req.body||{},req.user.email);
+        validateEvidenceReferences({},req.body||{},fileId=>db.prepare("SELECT action_id,sha256,name FROM evidence_files WHERE id=? AND company_id=?").get(fileId,req.user.companyId));
+      }catch(e){return res.status(422).json({error:e.message})}
+    }
     const recordId = id();
     const timestamp = now();
 
@@ -659,6 +899,32 @@ app.post(
   }
 );
 
+app.get(
+  "/api/records/:id/versions",
+  authenticate,
+  requirePermission("record:read"),
+  (req,res)=>{
+    const record=db.prepare("SELECT id,version FROM records WHERE id=? AND company_id=?").get(req.params.id,req.user.companyId);
+    if(!record)return res.status(404).json({error:"NOT_FOUND"});
+    const versions=db.prepare("SELECT version,changed_by,created_at FROM record_versions WHERE record_id=? AND company_id=? ORDER BY version DESC LIMIT 100").all(req.params.id,req.user.companyId);
+    res.json({recordId:record.id,currentVersion:record.version,versions});
+  }
+);
+app.get(
+  "/api/records/:id/versions/:version",
+  authenticate,
+  requirePermission("record:read"),
+  (req,res)=>{
+    const version=Number(req.params.version);
+    if(!Number.isSafeInteger(version)||version<1)return res.status(400).json({error:"INVALID_VERSION"});
+    const record=db.prepare("SELECT id FROM records WHERE id=? AND company_id=?").get(req.params.id,req.user.companyId);
+    if(!record)return res.status(404).json({error:"NOT_FOUND"});
+    const snapshot=db.prepare("SELECT version,payload,changed_by,created_at FROM record_versions WHERE record_id=? AND company_id=? AND version=?").get(req.params.id,req.user.companyId,version);
+    if(!snapshot)return res.status(404).json({error:"VERSION_NOT_FOUND"});
+    res.json({...snapshot,payload:JSON.parse(snapshot.payload)});
+  }
+);
+
 app.put(
   "/api/records/:id",
   authenticate,
@@ -682,20 +948,41 @@ app.put(
       });
     }
 
-    db.prepare(`
-      UPDATE records
-      SET
-        payload = ?,
-        version = version + 1,
-        updated_at = ?
-      WHERE id = ?
-      AND company_id = ?
-    `).run(
-      JSON.stringify(req.body || {}),
-      now(),
-      req.params.id,
-      req.user.companyId
-    );
+    try{
+      validateCorrectiveActionMutation(JSON.parse(record.payload),req.body||{},req.user.email);
+      validateGovernanceMutation(JSON.parse(record.payload),req.body||{},req.user.email);
+      validateEvidenceReferences(JSON.parse(record.payload),req.body||{},fileId=>db.prepare("SELECT action_id,sha256,name FROM evidence_files WHERE id=? AND company_id=?").get(fileId,req.user.companyId));
+    }catch(error){
+      return res.status(422).json({error:error.message});
+    }
+    const expectedVersion = Number(req.get("x-record-version"));
+    if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
+      return res.status(428).json({error:"VERSION_REQUIRED", currentVersion:record.version});
+    }
+    if (record.version !== expectedVersion) {
+      return res.status(409).json({error:"VERSION_CONFLICT",currentVersion:record.version});
+    }
+    const timestamp=now();
+    const updated=db.transaction(()=>{
+      db.prepare(`
+        INSERT OR IGNORE INTO record_versions (record_id,company_id,version,payload,changed_by,created_at)
+        VALUES (?,?,?,?,?,?)
+      `).run(record.id,req.user.companyId,record.version,record.payload,req.user.sub,timestamp);
+      const write=db.prepare(`
+        UPDATE records SET payload=?, version=version+1, updated_at=?
+        WHERE id=? AND company_id=? AND version=?
+      `).run(JSON.stringify(req.body||{}),timestamp,req.params.id,req.user.companyId,expectedVersion);
+      if(write.changes!==1)throw new Error("CONCURRENT_UPDATE");
+      db.prepare(`
+        INSERT INTO record_versions (record_id,company_id,version,payload,changed_by,created_at)
+        VALUES (?,?,?,?,?,?)
+      `).run(record.id,req.user.companyId,expectedVersion+1,JSON.stringify(req.body||{}),req.user.sub,timestamp);
+      return write;
+    });
+    try {updated();} catch(error){
+      if(error.message==="CONCURRENT_UPDATE")return res.status(409).json({error:"VERSION_CONFLICT"});
+      throw error;
+    }
 
     audit(
       req,
@@ -707,9 +994,7 @@ app.put(
       }
     );
 
-    res.json({
-      ok: true,
-    });
+    res.json({ok:true,version:expectedVersion+1});
   }
 );
 

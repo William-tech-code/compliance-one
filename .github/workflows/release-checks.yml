@@ -1,0 +1,32 @@
+name: Compliance One release checks
+on:
+  pull_request:
+  push:
+    branches:
+      - release/compliance-one-render-hardening
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate backend syntax
+        run: node --check server/index.js
+      - name: Validate 800-question sector diagnostics
+        run: node --test tests/enterpriseQuestionBank.test.js tests/diagnosticEngine.test.js tests/diagnosticGovernance.test.js tests/regulatoryIntelligence.test.js tests/complianceBriefing.test.js tests/complianceOperations.test.js tests/intelligenceIntegration.test.js tests/correctiveActionGuard.test.js tests/executiveIntelligence.test.js tests/enterpriseGovernance.test.js tests/governanceGuard.test.js tests/evidenceGuard.test.js
+      - name: Test concurrent API workspace writes
+        run: node --test tests/workspaceConcurrency.test.js tests/workspaceIsolationRecovery.test.js tests/evidenceUploadDownload.test.js
+      - name: Build frontend
+        run: npm run build
+      - name: Check production startup without secrets is rejected
+        run: |
+          if NODE_ENV=production DATABASE_PATH=/tmp/compliance-one.sqlite node server/index.js; then
+            echo "Server started without JWT_SECRET" >&2
+            exit 1
+          fi

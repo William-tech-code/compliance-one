@@ -1,0 +1,38 @@
+/* V49: adaptive layout for Android, iOS, tablets and desktop. */
+html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+body { min-width:0; }
+.app,.app main,.app .content,.app .panel { min-width:0; }
+.app img,.app video,.app canvas,.app svg { max-width:100%; }
+.app input,.app select,.app textarea { max-width:100%; box-sizing:border-box; }
+.app button,.app a,.app input,.app select,.app textarea { touch-action:manipulation; }
+@media (pointer:coarse) {
+ .app button,.app nav button,.app select,.app input { min-height:44px; }
+}
+@media (max-width:1024px) {
+ .app .content { min-width:0; }
+ .app .panel,.app .hero { max-width:100%; }
+ .app table { max-width:100%; }
+ .app .table-wrap,.app .table-responsive,.app .table-container { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+}
+@media (max-width:760px) {
+ .app { width:100%; max-width:100vw; }
+ .app aside { box-sizing:border-box; width:100%; }
+ .app main { box-sizing:border-box; min-width:0; width:100%; margin-left:0; }
+ .app main>header { box-sizing:border-box; width:100%; }
+ .app .content { box-sizing:border-box; width:100%; padding:clamp(12px,3vw,20px); }
+ .app .top-actions { flex-wrap:wrap; }
+ .app .panel,.app .metric,.app .company { min-width:0; overflow-wrap:anywhere; }
+ .app table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+ .app .modal,.app [role="dialog"] { max-width:calc(100vw - 24px); max-height:calc(100dvh - 24px); overflow-y:auto; }
+}
+@media (max-width:480px) {
+ .app .content { padding:12px; }
+ .app .hero h1,.app .module-hero h1 { font-size:clamp(21px,6vw,28px); }
+ .app input,.app textarea,.app select { font-size:16px; }
+ .app .top-actions button { white-space:normal; }
+}
+@supports (padding:env(safe-area-inset-bottom)) {
+ @media(max-width:760px) {
+  .app .content { padding-bottom:calc(14px + env(safe-area-inset-bottom)); }
+ }
+}

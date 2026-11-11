@@ -1,5 +1,21 @@
+import EnterpriseGovernanceCenter from "./EnterpriseGovernanceCenter";
+import ExecutiveIntelligenceCenter from "./ExecutiveIntelligenceCenter";
+import ComplianceIntelligencePanel from "./ComplianceIntelligencePanel";
+import CorrectiveActionsWorkspace from "./CorrectiveActionsWorkspace";
+import {complianceOperationsSummary} from "./complianceOperations";
+import {generateComplianceBriefing} from "./complianceBriefing";
+import {regulatoryIntelligenceSummary,createRegulatoryReview} from "./regulatoryIntelligence";
+import { recordDiagnosticAnswer, validateDiagnosticLinks, diagnosticProgress, executiveDiagnosticSummary } from "./diagnosticGovernance";
+import { assessDiagnostic } from "./diagnosticEngine";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { buildEnterpriseQuestions } from "./enterpriseQuestionBank";
 import "./App.css";
+import "./NexoraRelease.css";
+import ReleaseCenter from "./ReleaseCenter";
+import "./NexoraExecutiveSystem.css";
+import "./NexoraResponsive.css";
+import "./NexoraMobilePolish.css";
+import "./DashboardPremium.css";
 import { apiGet, apiPost, apiPut, bootstrapCompany, login, logout as apiLogout } from "./api";
 import NexusV125CommandCenter from "./NexusV125CommandCenter";
 import NexusAICommandCenter from "./NexusAICommandCenter";
@@ -11,6 +27,7 @@ import NexusExecutiveIntelligence from "./NexusExecutiveIntelligence";
 import NexusAutonomousActionCenter from "./NexusAutonomousActionCenter";
 
 const KEY = "nexus-compliance-v124-final-enterprise";
+const RELEASE_NOTICE_KEY = "nexora-release-notice-enterprise-v3";
 const DOCUMENT_CATALOG = [
 ["Código de Ética e Conduta","Governança","Todos","Alta","Princípios, comportamentos, conflitos, responsabilidades e orientações."],
 ["Política Anticorrupção e Antissuborno","Integridade","Todos","Crítica","Prevenção de corrupção, pagamentos indevidos e interação com agentes públicos."],
@@ -440,7 +457,7 @@ const SEGMENTS = [
   "Supermercados / Varejo","Logística / Transportes","Produção / Indústria",
   "Metalúrgica","Química / Petroquímica","Hotelaria / Turismo","Saúde / Hospitalar",
   "Construção","Gestão Pública","Agronegócio","Financeiro","Educação","Tecnologia",
-  "Serviços","Energia","Outro"
+  "Serviços","Energia","Cartórios / Tabelionatos de Notas","Outro"
 ];
 const SIZES = ["Microempresa","Pequena empresa","Média empresa","Grande empresa","Órgão público"];
 const MODES = ["SaaS","Assessoria","SaaS + Assessoria"];
@@ -604,58 +621,74 @@ const RISK_LEVEL = (p,i) => {
 const now = () => new Date().toLocaleString("pt-BR");
 const uid = p => `${p}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2,6).toUpperCase()}`;
 
+const DEEP_AUDIT_DIMENSIONS = [
+  ["Responsabilidade","Existe um responsável nominalmente designado pelo controle de {topic}?"],
+  ["Política","Há política formal aprovada que disciplina {topic}?"],
+  ["Procedimento","O procedimento operacional de {topic} está documentado e disponível?"],
+  ["Risco","Os riscos inerentes a {topic} foram identificados e avaliados?"],
+  ["Criticidade","A criticidade dos riscos de {topic} considera probabilidade e impacto?"],
+  ["Inventário","Existe inventário atualizado de ativos, operações ou registros de {topic}?"],
+  ["Obrigação","Foram identificadas as obrigações legais e contratuais aplicáveis a {topic}?"],
+  ["Evidência","A execução do controle de {topic} produz evidência verificável?"],
+  ["Aprovação","As aprovações relevantes de {topic} seguem alçadas formalizadas?"],
+  ["Segregação","Há segregação entre execução, aprovação e fiscalização de {topic}?"],
+  ["Acesso","O acesso a informações e operações de {topic} é limitado por função?"],
+  ["Revisão de acesso","Os acessos privilegiados relacionados a {topic} são revisados periodicamente?"],
+  ["Treinamento","Os profissionais responsáveis por {topic} recebem capacitação específica?"],
+  ["Competência","A competência técnica exigida para {topic} é comprovada e atualizada?"],
+  ["Terceiros","Os terceiros envolvidos em {topic} são avaliados conforme seu risco?"],
+  ["Contrato","Os contratos relativos a {topic} contêm obrigações e responsabilidades adequadas?"],
+  ["Monitoramento","Existem indicadores objetivos para monitorar {topic}?"],
+  ["Periodicidade","A periodicidade de revisão de {topic} está definida e é cumprida?"],
+  ["Teste","A efetividade dos controles de {topic} é testada com metodologia documentada?"],
+  ["Auditoria","Há auditoria independente ou revisão amostral de {topic}?"],
+  ["Desvio","Os desvios identificados em {topic} são registrados e classificados?"],
+  ["Correção","As falhas de {topic} geram planos de ação com responsável e prazo?"],
+  ["Validação","A conclusão das ações corretivas de {topic} exige validação de eficácia?"],
+  ["Incidente","Existe procedimento para detectar e comunicar incidentes ligados a {topic}?"],
+  ["Resposta","Os incidentes críticos de {topic} possuem responsáveis e plano de resposta?"],
+  ["Continuidade","Existe contingência para indisponibilidade de processos críticos de {topic}?"],
+  ["Rastreabilidade","É possível rastrear decisões, alterações e evidências de {topic}?"],
+  ["Retenção","Os registros de {topic} seguem critérios documentados de retenção e descarte?"],
+  ["Reporte","A liderança recebe reporte periódico sobre riscos e resultados de {topic}?"],
+  ["Exceções","As exceções aos controles de {topic} são justificadas, aprovadas e registradas?"],
+  ["Melhoria","Os resultados de {topic} alimentam um ciclo formal de melhoria contínua?"],
+  ["Verificação","Há verificação documentada de aderência de {topic} aos requisitos aplicáveis?"]
+];
+
+const ENTERPRISE_AUDIT_TOPICS = [
+  ["Governança","governance"],["Direção executiva","governance"],
+  ["Integridade e anticorrupção","integrity"],["Canal de denúncias","ethics"],
+  ["Jurídico e regulatório","legal"],["Recursos humanos","hr"],
+  ["Financeiro e tesouraria","finance"],["Contabilidade e fiscal","finance"],
+  ["Compras e suprimentos","thirdparty"],["Gestão de terceiros","thirdparty"],
+  ["Operações e processos","controls"],["Comercial e clientes","controls"],
+  ["Tecnologia da informação","security"],["Segurança cibernética","security"],
+  ["Privacidade e dados pessoais","privacy"],["Gestão da qualidade","quality"],
+  ["Saúde e segurança ocupacional","safety"],["Gestão ambiental","environment"],
+  ["Auditoria interna","audit"]
+];
+
 function questionBank(company={}, globalProfile={}) {
   const segment=company.segment||"Outro";
-  const extra = SECTOR_QUESTIONS[segment] || SECTOR_QUESTIONS["Outro"];
-  const pack = SECTOR_PACKS[segment] || SECTOR_PACKS["Outro"];
-  const companyName=company.name||"a organização";
-  const size=company.size||"o porte informado";
-  const city=company.city||"a localidade informada";
-  const mode=company.mode||"o modelo operacional informado";
-  const jurisdictions=(globalProfile.jurisdictions||["BR"]).join(", ");
-  const context=`na empresa ${companyName}, considerando o porte ${size}, o ramo ${segment}, a operação ${mode}, a localidade ${city} e as jurisdições ${jurisdictions}`;
-
-  const sectorGenerated = pack.flatMap((area,ai)=>UNIVERSAL_QUESTION_TEMPLATES.slice(ai*3,ai*3+3).map((q,j)=>[
-    area, `No processo de ${area}, ${q[1].replace(/^Existe |^Há |^Os |^A |^O |^Contratos /,"").replace(/\?$/,"")}?`, q[2]
-  ]));
-
-  // O questionário é transversal: chão de fábrica/operação, liderança e funções de suporte.
-  const enterpriseAreas = [
-    "Governança e Conselho","Direção Executiva","Compliance e Integridade","Jurídico",
-    "Recursos Humanos","Financeiro e Controladoria","Compras e Suprimentos","Terceiros e Fornecedores",
-    "Operações","Comercial e Vendas","Logística","Tecnologia e Segurança da Informação",
-    "Privacidade e Dados","Qualidade","Saúde e Segurança","Meio Ambiente","Auditoria",
-    "Gestão de Documentos","Continuidade de Negócios","Canal de Denúncias","ESG e Responsabilidade",
-    "Treinamento e Cultura"
+  const sectorTopics=(SECTOR_PACKS[segment]||SECTOR_PACKS["Outro"]).slice(0,6);
+  const topics=[
+    ...ENTERPRISE_AUDIT_TOPICS,
+    ...sectorTopics.map(topic=>[topic,"sector"])
   ];
-  const cross = enterpriseAreas.flatMap((area,idx)=>{
-    const q=UNIVERSAL_QUESTION_TEMPLATES[idx%UNIVERSAL_QUESTION_TEMPLATES.length];
-    return [[area, `${q[1].replace(/\?$/,"")} ${context}?`, q[2]]];
-  });
-
-  const raw=[...BASE_QUESTIONS,...extra,...UNIVERSAL_QUESTION_TEMPLATES,...sectorGenerated,...cross];
-  const seen=new Set();
-  const unique=raw.filter(q=>{
-    const k=q[0]+"|"+q[1];
-    if(seen.has(k)) return false;
-    seen.add(k); return true;
-  });
-
-  const expanded=[...unique];
-  let n=0;
-  while(expanded.length<120){
-    const q=UNIVERSAL_QUESTION_TEMPLATES[n%UNIVERSAL_QUESTION_TEMPLATES.length];
-    const area=enterpriseAreas[n%enterpriseAreas.length];
-    expanded.push([area,`${q[1].replace(/\?$/,"")} ${context}?`,q[2]]);
-    n++;
-  }
-
-  return expanded.slice(0,160).map((q,i)=>({
-    id:`Q${String(i+1).padStart(3,"0")}`,
-    area:q[0],
-    text:q[1],
-    key:q[2]
-  }));
+  // 25 áreas (19 corporativas + 6 setoriais) × 32 verificações = 800 itens.
+  // IDs versionados impedem associar respostas antigas a perguntas diferentes.
+  return topics.flatMap(([area,key],areaIndex)=>
+    DEEP_AUDIT_DIMENSIONS.map(([dimension,template],dimensionIndex)=>({
+      id:`V46-Q${String(areaIndex*DEEP_AUDIT_DIMENSIONS.length+dimensionIndex+1).padStart(3,"0")}`,
+      area,
+      dimension,
+      sector:segment,
+      key,
+      text:template.replace("{topic}",area.toLowerCase()) ,
+      evidenceHint:`Solicite documentos, registros ou evidências de ${dimension.toLowerCase()} referentes a ${area.toLowerCase()}.`
+    }))
+  );
 }
 
 
@@ -716,6 +749,13 @@ function load() {
 
 function AppCore() {
   const [s,setS] = useState(load);
+  const [showReleaseNotice,setShowReleaseNotice] = useState(()=>{
+    try { return localStorage.getItem(RELEASE_NOTICE_KEY)!=="dismissed"; }
+    catch { return true; }
+  });
+  const [releaseOpen,setReleaseOpen] = useState(false);
+  const acknowledgeRelease=()=>{setShowReleaseNotice(false);try{localStorage.setItem(RELEASE_NOTICE_KEY,"dismissed")}catch{}};
+  const openRelease=()=>{acknowledgeRelease();setReleaseOpen(true)};
   const [showEntry,setShowEntry] = useState(()=>{ try { return sessionStorage.getItem("nexus-entry-v119") !== "1"; } catch { return true; } });
   const [page,setPage] = useState("dashboard");
   const [busy,setBusy] = useState(null);
@@ -725,10 +765,14 @@ function AppCore() {
   const [apiUser,setApiUser] = useState(null);
   const [apiLoading,setApiLoading] = useState(true);
   const [apiSyncing,setApiSyncing] = useState(false);
+  const [apiSyncError,setApiSyncError] = useState(false);
   const [remoteRecordId,setRemoteRecordId] = useState(null);
   const hydrationRef = useRef(false);
   const remoteRecordIdRef = useRef(null);
+  const remoteRecordVersionRef = useRef(null);
   const syncTimerRef = useRef(null);
+  const syncQueueRef = useRef(Promise.resolve());
+  const [versionHistory,setVersionHistory] = useState(null);
 
   useEffect(()=>{
     // Enquanto a sessão/API ainda está sendo identificada, não sobrescrever
@@ -749,7 +793,6 @@ function AppCore() {
       try{
         const me=await apiGet("/me");
         if(!active) return;
-        setApiUser(me.user||null);
         const remote=await apiGet("/records/workspace");
         const record=remote?.records?.[0];
         if(record?.payload){
@@ -767,8 +810,10 @@ function AppCore() {
           setS(merged);
           setRemoteRecordId(record.id);
           remoteRecordIdRef.current=record.id;
+          remoteRecordVersionRef.current=record.version;
         }
         hydrationRef.current=true;
+        if(active) setApiUser(me.user||null);
       }catch(err){
         hydrationRef.current=true;
         if(active){
@@ -786,38 +831,47 @@ function AppCore() {
   useEffect(()=>{
     if(!apiUser || !hydrationRef.current) return;
     clearTimeout(syncTimerRef.current);
-    syncTimerRef.current=setTimeout(async()=>{
-      try{
-        setApiSyncing(true);
-        const id=remoteRecordIdRef.current;
-        if(id){
-          await apiPut(`/records/${id}`,s);
-        }else{
-          const created=await apiPost("/records/workspace",s);
-          remoteRecordIdRef.current=created?.id||null;
-          setRemoteRecordId(created?.id||null);
+    syncTimerRef.current=setTimeout(()=>{
+      const snapshot=s;
+      syncQueueRef.current=syncQueueRef.current.catch(()=>{}).then(async()=>{
+        try{
+          setApiSyncing(true);
+          const id=remoteRecordIdRef.current;
+          if(id){
+            const updated=await apiPut(`/records/${id}`,snapshot,remoteRecordVersionRef.current);
+            remoteRecordVersionRef.current=updated.version;
+          }else{
+            const created=await apiPost("/records/workspace",snapshot);
+            remoteRecordIdRef.current=created?.id||null;
+            remoteRecordVersionRef.current=1;
+            setRemoteRecordId(created?.id||null);
+          }
+          setApiSyncError(false);
+        }catch(err){
+          setApiSyncError(true);
+          console.warn("NEXUS API sync:",err);
+          throw err;
+        }finally{
+          setApiSyncing(false);
         }
-      }catch(err){
-        console.warn("NEXUS API sync:",err);
-      }finally{
-        setApiSyncing(false);
-      }
+      });
     },900);
     return ()=>clearTimeout(syncTimerRef.current);
   },[s,apiUser]);
 
-  const questions = useMemo(()=>questionBank(s.company,s.globalProfile),[s.company,s.globalProfile]);
-  const answered = Object.keys(s.answers).length;
+  const questions = useMemo(()=>buildEnterpriseQuestions(s.company.segment),[s.company.segment]);
+  const answered = diagnosticProgress(questions,s.answers).answered;
   const done = s.workflow;
   const progress = Math.round(Object.values(done).filter(Boolean).length / Object.keys(done).length * 100);
 
   const maturity = useMemo(()=>{
     if(!answered) return 18;
-    const vals = Object.values(s.answers);
+    const vals = questions.map(q=>s.answers[q.id]).filter(v=>v && v!=="N/A");
     const score = vals.reduce((a,v)=>a+(v==="Sim"?1:v==="Parcialmente"?0.5:0),0);
-    return Math.round(18 + (score / Math.max(1,questions.length))*82);
-  },[s.answers,questions.length]);
+    return Math.round(18 + (score / Math.max(1,vals.length))*82);
+  },[s.answers,questions]);
 
+  const operationalActions=useMemo(()=>complianceOperationsSummary((s.correctiveActions||[])),[s.correctiveActions]);
   const stats = useMemo(()=>{
     const out={total:s.risks.length,Crítico:0,Alto:0,Médio:0,Baixo:0};
     s.risks.forEach(r=>out[r.level||RISK_LEVEL(r.p,r.i)]++);
@@ -828,13 +882,12 @@ function AppCore() {
 
   const notify = msg => { setToast(msg); setTimeout(()=>setToast(""),2600); };
   const run = (text,cb) => {
-    setBusy({text,p:0});
-    let p=0;
-    const t=setInterval(()=>{
-      p=Math.min(100,p+Math.floor(Math.random()*13)+9);
-      setBusy({text,p});
-      if(p>=100){clearInterval(t);setTimeout(()=>{setBusy(null);cb?.()},220);}
-    },90);
+    // Não simular processamento aleatório: a ação já está pronta.
+    setBusy({text,p:100});
+    window.setTimeout(()=>{
+      setBusy(null);
+      cb?.();
+    },180);
   };
   const commit = (ns,msg) => {
     setS({...ns,history:[...(ns.history||s.history),{id:uid("LOG"),text:msg,date:now()}]});
@@ -844,7 +897,7 @@ function AppCore() {
   async function connectApi(session,seedState=null){
     try{
       const me=session?.user ? session : await apiGet("/me");
-      setApiUser(me?.user||null);
+      hydrationRef.current=false;
       const remote=await apiGet("/records/workspace");
       const record=remote?.records?.[0];
       if(record?.payload){
@@ -861,13 +914,16 @@ function AppCore() {
         });
         setRemoteRecordId(record.id);
         remoteRecordIdRef.current=record.id;
+        remoteRecordVersionRef.current=record.version;
       }else{
         const seed=seedState||s;
         const created=await apiPost("/records/workspace",seed);
         setRemoteRecordId(created?.id||null);
         remoteRecordIdRef.current=created?.id||null;
+        remoteRecordVersionRef.current=1;
       }
       hydrationRef.current=true;
+      setApiUser(me?.user||null);
       notify("NEXUS conectado à API V124.");
     }catch(err){
       setApiUser(null);
@@ -931,30 +987,7 @@ function AppCore() {
   }
 
   function generateFromAnswers(answerMap=s.answers) {
-    const generatedRisks=[], generatedActions=[], generatedLegal=[], seen=new Set();
-    questions.forEach(q=>{
-      const a=answerMap[q.id];
-      if(a==="Sim" || a==="N/A") return;
-      const lib=RISK_LIBRARY[q.key] || RISK_LIBRARY.controls;
-      const uniqueKey=q.key+"|"+a;
-      if(seen.has(uniqueKey)) return;
-      seen.add(uniqueKey);
-      const p=a==="Não"?4:3, i=lib.legal?4:3, level=RISK_LEVEL(p,i);
-      const risk={id:uid("RISCO"),title:lib.title,category:lib.category,sourceQuestion:q.id,sourceText:q.text,answer:a,p,i,score:p*i,level,status:"Pendente de confirmação",cause:lib.cause,consequence:lib.consequence,control:"Controle a validar no diagnóstico.",recommendation:lib.recommendation,responsible:lib.owner,created:now(),automatic:true};
-      generatedRisks.push(risk);
-      generatedActions.push({id:uid("ACAO"),riskId:risk.id,title:lib.action,description:lib.recommendation,responsible:lib.owner,priority:level,deadline:"",status:"Pendente de confirmação",evidenceRequired:"Evidência documental da implementação e eficácia.",automatic:true,created:now()});
-      if(lib.legal) generatedLegal.push({id:uid("JUR"),riskId:risk.id,title:`Avaliação jurídica — ${lib.title}`,reason:`Achado ${level.toLowerCase()} relacionado a ${lib.category}. Potencial impacto legal, regulatório, contratual ou de responsabilidade.`,status:"Aguardando confirmação",responsible:"Jurídico",automatic:true,created:now()});
-    });
-    const analysis=frameworkAnalysis();
-    analysis.selected.slice(0,8).forEach(f=>{
-      const key="framework:"+f.id;
-      if(seen.has(key)) return;
-      seen.add(key);
-      generatedRisks.push({id:uid("RISCO"),title:`Exposição de framework — ${f.name}`,category:f.area,sourceQuestion:"ENGINE-GLOBAL",sourceText:`Camada recomendada: ${f.name}`,answer:"Detecção automática",p:3,i:f.tier==="Jurisdictional"?4:3,score:12,level:"Alto",status:"Pendente de confirmação",cause:"O perfil da organização aciona uma camada de Compliance que precisa ser avaliada.",consequence:"Lacunas podem gerar exposição regulatória, contratual, operacional ou reputacional.",control:"Mapeamento de aplicabilidade a validar.",recommendation:"Executar gap assessment e encaminhar pontos jurídicos aplicáveis para validação.",responsible:"Compliance / Jurídico",created:now(),automatic:true});
-      generatedActions.push({id:uid("ACAO"),riskId:generatedRisks.at(-1).id,title:`Gap assessment — ${f.name}`,description:"Avaliar aplicabilidade, controles, evidências e lacunas.",responsible:"Compliance / Jurídico",priority:"Alto",deadline:"",status:"Pendente de confirmação",evidenceRequired:"Matriz de aplicabilidade e evidências.",automatic:true,created:now()});
-      generatedLegal.push({id:uid("JUR"),riskId:generatedRisks.at(-1).id,title:`Validação jurídica — ${f.name}`,reason:"Framework acionado automaticamente pelo perfil global.",status:"Aguardando confirmação",responsible:"Jurídico",automatic:true,created:now()});
-    });
-    return {risks:generatedRisks,actions:generatedActions,legal:generatedLegal};
+    return assessDiagnostic(questions,answerMap,RISK_LIBRARY,RISK_LEVEL,frameworkAnalysis().selected);
   }
 
 
@@ -974,6 +1007,8 @@ function AppCore() {
     if(page==="questionario"){
       if(answered<questions.length) return notify("Responda todas as perguntas antes de gerar o diagnóstico automático.");
       const generated=generateFromAnswers(s.answers);
+      const integrity=validateDiagnosticLinks(generated,questions);
+      if(!integrity.valid) return notify("Diagnóstico inconsistente: revise os vínculos antes de concluir.");
       const ns={...s,risks:generated.risks,actions:generated.actions,legal:generated.legal,review:{status:"Aguardando confirmação",confirmedRisks:false,confirmedActions:false,confirmedLegal:false},workflow:{...s.workflow,questionario:true},history:[...s.history,{id:uid("LOG"),text:`Diagnóstico consolidado instantaneamente: ${generated.risks.length} riscos, ${generated.actions.length} ações e ${generated.legal.length} triagens jurídicas.`,date:now()}]};
       setS(ns); notify(`Diagnóstico concluído: ${generated.risks.length} riscos, ${generated.actions.length} ações e ${generated.legal.length} triagens. Matriz atualizada.`);
       run("Atualizando matriz, plano e triagem",()=>setPage("riscos"));
@@ -1038,7 +1073,9 @@ function AppCore() {
   }
 
   function answer(id,v) {
-    setS(prev=>({...prev,answers:{...prev.answers,[id]:v}}));
+    const question=questions.find(q=>q.id===id);
+    if(!question) return notify("Pergunta não encontrada no ramo atual.");
+    setS(prev=>recordDiagnosticAnswer(prev,question,v,apiUser?.name||apiUser?.email||"Usuário local"));
   }
 
   function confirmRisks() {
@@ -1125,6 +1162,36 @@ function attach(files,owner,ownerId) {
     w.document.close();
   }
 
+  async function openVersionHistory(){
+    if(!apiUser || !remoteRecordIdRef.current)return notify("Conecte a API para consultar o histórico.");
+    try{
+      await syncQueueRef.current.catch(()=>{});
+      const id=remoteRecordIdRef.current;
+      const result=await apiGet(`/records/${id}/versions`);
+      setVersionHistory({id,versions:result.versions||[],currentVersion:result.currentVersion});
+    }catch(err){notify("Não foi possível consultar o histórico: "+err.message)}
+  }
+  async function restoreRemoteVersion(version){
+    if(!versionHistory || !apiUser)return;
+    if(!window.confirm(`Restaurar os dados da versão ${version}? A restauração será salva como uma NOVA versão, sem excluir o histórico. Continue?`))return;
+    try{
+      await syncQueueRef.current;
+      if(apiSyncError)throw new Error("Existe falha de sincronização pendente.");
+      const latest=await apiGet("/records/workspace");
+      const current=latest.records?.find(r=>r.id===versionHistory.id);
+      if(!current || current.version!==remoteRecordVersionRef.current)throw new Error("Outro usuário alterou os dados. Atualize a página antes de restaurar.");
+      const old=await apiGet(`/records/${versionHistory.id}/versions/${version}`);
+      const payload=old.payload;
+      if(!payload || typeof payload!=="object" || !payload.company || !payload.workflow)throw new Error("Versão inválida.");
+      const restored={...fresh(),...payload,history:[...(payload.history||[]),{id:uid("LOG"),text:`Versão ${version} restaurada para nova revisão.`,date:now()}]};
+      const saved=await apiPut(`/records/${versionHistory.id}`,restored,remoteRecordVersionRef.current);
+      remoteRecordVersionRef.current=saved.version;
+      setS(restored);
+      setVersionHistory(null);
+      setApiSyncError(false);
+      notify(`Versão ${version} restaurada. Nova versão: ${saved.version}.`);
+    }catch(err){setApiSyncError(true);notify("Restauração não concluída: "+err.message)}
+  }
   function exportBackup(){
     const blob=new Blob([JSON.stringify(s,null,2)],{type:"application/json"});
     const url=URL.createObjectURL(blob);
@@ -1157,15 +1224,19 @@ function attach(files,owner,ownerId) {
     notify("Workspace local reiniciado.");
   }
 
-  const nav=[["dashboard","⌂","Dashboard"],["global","◎","Global Compliance"],["empresa","▣","Empresa"],...steps.slice(1).map(([k,l],i)=>[k,["◈","☑","△","✓","📎","§","▤"][i],l]),["documentos","▤","Documentos Inteligentes"],["standards","◌","Atualizações & Frameworks"],["producao","⌘","Operação Empresarial"],["matriz-filosofica","◉","Matriz Filosófica"],["denuncias","⚑","Canal de Denúncias"]];
+  const nav=[["dashboard","⌂","Dashboard"],["denuncias","⚑","Canal de Denúncias"],["global","◎","Global Compliance"],["empresa","▣","Empresa"],...steps.slice(1).map(([k,l],i)=>[k,["◈","☑","△","✓","📎","§","▤"][i],l]),["documentos","▤","Documentos Inteligentes"],["standards","◌","Atualizações & Frameworks"],["producao","⌘","Operação Empresarial"],["matriz-filosofica","◉","Matriz Filosófica"]];
 
   const enterExperience=()=>{ try { sessionStorage.setItem("nexus-entry-v119","1"); } catch {} setS(prev=>({...prev,firstAccess:false,history:[...(prev.history||[]),{id:uid("LOG"),text:"Experiência inteligente iniciada.",date:now()}]})); setPage("empresa"); setShowEntry(false); };
   const enterDemo=()=>{ try { sessionStorage.setItem("nexus-entry-v119","1"); } catch {} const demo={name:"Empresa Demo NEXUS",document:"TESTE-0001",segment:"Supermercados / Varejo",size:"Média empresa",city:"São Paulo / SP",mode:"SaaS + Assessoria",responsible:"Usuário Teste",director:"Diretor Demo"}; setS(prev=>({...prev,firstAccess:false,company:demo,workflow:{...prev.workflow,empresa:true},history:[...(prev.history||[]),{id:uid("LOG"),text:"Ambiente DEMO iniciado.",date:now()}]})); setPage("diagnostico"); setShowEntry(false); };
-  if (showEntry) return <FirstAccess onStart={enterExperience} onDemo={enterDemo}/>;
+  // Production is private by default: no local/demo workspace without a verified API session.
+  if(apiLoading) return <div className="app" style={{display:"grid",placeItems:"center",minHeight:"100vh",padding:24}}><div role="status">Validando acesso seguro ao Compliance One...</div></div>;
+  if(!apiUser) return <div className="app" style={{display:"grid",placeItems:"center",minHeight:"100vh",padding:24}}><div style={{width:"min(100%,520px)"}}><h1>NEXORA · COMPLIANCE ONE</h1><p>Ambiente privado. Entre com sua conta autorizada para acessar a plataforma.</p><AuthModal close={()=>{}} onLogin={handleApiLogin} onBootstrap={handleApiBootstrap}/></div></div>;
+  // FirstAccess/demo is intentionally not reachable in authenticated production.
+
 
   return <div className="app">
     <aside>
-      <div className="brand"><b>N</b><div><strong>NEXUS</strong><small>COMPLIANCE ONE · V124</small></div></div>
+      <div className="brand"><b>N</b><div><strong>NEXORA</strong><small>COMPLIANCE ONE · ENTERPRISE</small></div></div>
       <div className="company"><small>EMPRESA ATIVA</small><strong>{s.company.name||"Novo projeto"}</strong><span>{s.company.segment||"Aguardando cadastro"}</span></div>
       <nav>{nav.map(([k,ic,l])=><button key={k} className={page===k?"active":""} onClick={()=>go(k)}><i>{ic}</i><span>{l}</span>{s.workflow[k]&&<em>✓</em>}</button>)}</nav>
       <div className="engine">● NEXUS INTELLIGENCE ENGINE <b>ONLINE</b></div>
@@ -1174,17 +1245,40 @@ function attach(files,owner,ownerId) {
     <main className="nexus-main">
       <header><div><small>NEXUS / INTELLIGENCE CENTER / {page.toUpperCase()}</small><strong>{nav.find(x=>x[0]===page)?.[2]||"Command Center"}</strong></div>
         <div className="top-actions">
+          <button aria-label="Ir ao Canal de Denúncias" onClick={()=>setPage("denuncias")}>⚑ Canal de Denúncias</button>
+          <button className="nexora-update-bell" aria-label="Abrir central de novidades e atualizações" onClick={()=>document.getElementById("nexora-update-center")?.scrollIntoView({behavior:"smooth",block:"start"})}>♧ <span>Novidades</span><i aria-hidden="true"/></button>
           <button onClick={()=>setModal("company")}>✎ Editar empresa</button>
           <button onClick={exportBackup}>↓ Backup</button>
+          {apiUser && <button onClick={openVersionHistory}>◷ Histórico de versões</button>}
           <label className="top-file">↑ Restaurar<input hidden type="file" accept="application/json,.json" onChange={e=>restoreBackup(e.target.files?.[0])}/></label>
           <button onClick={resetWorkspace}>↺ Reiniciar</button>
           {apiUser
             ? <button onClick={disconnectApi}>● API V124 · {apiUser.role}</button>
             : <button onClick={()=>setModal("auth")}>⇄ Conectar API</button>}
-          <span>{apiUser?(apiSyncing?"● Sincronizando":"● API conectada"):"● Modo local"}</span>
+          <span>{apiUser?(apiSyncing?"● Sincronizando":apiSyncError?"⚠ Falha ao salvar na API":"● API conectada"):"● Modo local"}</span>
         </div>
       </header>
 
+
+      {versionHistory && <section role="dialog" aria-label="Histórico de versões" style={{padding:20,margin:16,border:"1px solid #526b81",borderRadius:12,background:"#10253c",color:"#fff"}}>
+        <h3>Histórico do diagnóstico · versão atual {versionHistory.currentVersion}</h3>
+        <p>Restaurar uma versão antiga cria um novo registro de versão. Nenhum histórico será apagado.</p>
+        <button onClick={()=>setVersionHistory(null)}>Fechar histórico</button>
+        <div style={{maxHeight:260,overflowY:"auto"}}>
+          {versionHistory.versions.map(v=><div key={v.version} style={{display:"flex",gap:12,alignItems:"center",padding:8,borderBottom:"1px solid #30485c"}}>
+            <span>Versão {v.version} · {v.created_at}</span>
+            <button disabled={v.version===versionHistory.currentVersion || apiSyncing || apiSyncError} onClick={()=>restoreRemoteVersion(v.version)}>Restaurar como nova versão</button>
+          </div>)}
+        </div>
+      </section>}
+      {page==="dashboard" && <ExecutiveIntelligenceCenter workspace={s} onNavigate={setPage}/>}
+      {page==="dashboard" && <EnterpriseGovernanceCenter workspace={s} setWorkspace={setS} reviewer={apiUser?.email||""} notify={notify}/>}
+      {page==="dashboard" && <section style={{margin:"12px 16px",padding:14,border:"1px solid #526b81",borderRadius:12}}>
+        <strong>Governança operacional · ações corretivas verificadas</strong>
+        <p>{operationalActions.total} ações registradas no novo fluxo · {operationalActions.overdue} vencidas · {operationalActions.pendingValidation} aguardando validação independente · {operationalActions.completed} concluídas</p>
+        <small>Indicadores das ações do fluxo de evidências; não incluem ações legadas até sua migração.</small>
+      </section>}
+      <div id="nexora-update-center"><ReleaseCenter/></div>
       <div className="content">
         <div className="steps">{steps.map(([k,l],i)=><button key={k} className={`${page===k?"current ":""}${s.workflow[k]?"done":""}`} onClick={()=>go(k)}><b>{s.workflow[k]?"✓":i+1}</b><span>{l}</span></button>)}</div>
 
@@ -1194,12 +1288,13 @@ function attach(files,owner,ownerId) {
         {page==="questionario" && <Questionnaire s={s} questions={questions} answered={answered} answer={answer} finish={finish}/>}
         {page==="riscos" && <AutoRisks s={s} stats={stats} confirm={confirmRisks} finish={finish} select={x=>setDetail({type:"risk",item:x})}/>}
         {page==="acoes" && <AutoActions s={s} confirm={confirmActions} finish={finish}/>}
+        {page==="acoes" && <CorrectiveActionsWorkspace workspace={s} setWorkspace={setS} reviewer={apiUser?.email||""} notify={notify}/>}
         {page==="evidencias" && <Evidence s={s} attach={attach} finish={finish}/>}
         {page==="juridico" && <AutoLegal s={s} confirm={confirmLegal} finish={finish}/>}
         {page==="matriz-filosofica" && <PhilosophyMatrix s={s} openDocument={d=>setDetail({type:"document",item:d})} />}
-        {page==="documentos" && <DocumentCenter s={s} generate={generateDocuments} openDocument={d=>setDetail({type:"document",item:d})} />}{page==="standards" && <StandardsCenter s={s} analysis={frameworkAnalysis()} notify={notify}/>}{page==="producao" && <ProductionCenter s={s} setS={setS} notify={notify}/>} 
+        {page==="documentos" && <DocumentCenter s={s} generate={generateDocuments} openDocument={d=>setDetail({type:"document",item:d})} />}{page==="standards" && <><ComplianceIntelligencePanel workspace={s} authenticated={!!apiUser} notify={notify}/><RegulatoryReviewPanel s={s} setS={setS} notify={notify} questions={questions} reviewer={apiUser?.name||apiUser?.email||""}/><StandardsCenter s={s} analysis={frameworkAnalysis()} notify={notify}/></>}{page==="producao" && <ProductionCenter s={s} setS={setS} notify={notify}/>} 
         {page==="relatorio" && <Report s={s} maturity={maturity} progress={progress} print={printReport} setS={setS} framework={frameworkAnalysis()}/>}
-        {page==="denuncias" && <Denunciations s={s} open={()=>setModal("den")} select={x=>setDetail({type:"den",item:x})}/>}
+        {page==="denuncias" && <Denunciations apiUser={apiUser}/>}
       </div>
     </main>
 
@@ -1220,24 +1315,80 @@ function Panel({title,sub,children}){return <section className="panel"><div clas
 function Metric({title,value,sub,tone=""}){return <div className={"metric "+tone}><small>{title}</small><b>{value}</b><span>{sub}</span></div>}
 function Advance({title,text,onClick,disabled=false,label="Avançar →"}){return <div className="advance"><div><b>{title}</b><span>{text}</span></div><button className="primary" disabled={disabled} onClick={onClick}>{disabled?"Aguardando confirmação":label}</button></div>}
 
+function NexoraUpdateExperience({onClose,onExplore}){
+  const [phase,setPhase]=useState(0);
+  const [active,setActive]=useState(0);
+  const highlights=[
+    {icon:"◈",title:"Diagnóstico por setor",detail:"800 perguntas organizadas em 32 áreas, com critérios específicos para o segmento da organização.",page:"diagnostico",label:"Abrir diagnóstico"},
+    {icon:"◇",title:"Riscos rastreáveis",detail:"Planos de ação vinculados a riscos, responsáveis, evidências e prioridades verificáveis.",page:"riscos",label:"Explorar riscos"},
+    {icon:"◎",title:"Governança e evidências",detail:"Revisão independente, trilhas de auditoria, preservação das evidências e isolamento entre organizações.",page:"dashboard",label:"Ir ao painel"},
+    {icon:"✦",title:"Inteligência regulatória",detail:"Referências oficiais para revisão humana; sem alegações de conformidade automática ou parecer jurídico substitutivo.",page:"standards",label:"Ver frameworks"},
+    {icon:"⚑",title:"Integridade e apuração",detail:"Canal externo independente, acesso exclusivo da equipe autorizada e histórico das mudanças de andamento.",page:"denuncias",label:"Abrir canal de denúncias"}
+  ];
+  useEffect(()=>{
+    const previous=document.body.style.overflow;
+    document.body.style.overflow="hidden";
+    const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const timer=setTimeout(()=>setPhase(1),reduced?0:640);
+    const ready=setTimeout(()=>setPhase(2),reduced?0:2200);
+    const key=(event)=>{if(event.key==="Escape")onClose()};
+    window.addEventListener("keydown",key);
+    return ()=>{clearTimeout(timer);clearTimeout(ready);document.body.style.overflow=previous;window.removeEventListener("keydown",key)};
+  },[onClose]);
+  const feature=highlights[active];
+  return <div className="nexora-update-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)onClose()}}>
+    <section className="nexora-update-modal" role="dialog" aria-modal="true" aria-label="Apresentação das novidades do Compliance One">
+      {phase<2&&<div className="nexora-cinematic-intro" role="status" aria-live="polite">
+        <div className="nexora-cinematic-rays" aria-hidden="true"/>
+        <div className="nexora-cinematic-symbol" aria-hidden="true"><span>N</span><i/><i/></div>
+        <span className="nexora-cinematic-kicker">NEXORA · ENTERPRISE EXPERIENCE</span>
+        <h2>{phase===0?"Uma nova era começa agora.":"Inteligência em movimento."}</h2>
+        <p>{phase===0?"Iniciando apresentação da versão…":"Preparando as novidades para você explorar…"}</p>
+        <div className="nexora-cinematic-track"><span style={{width:phase===0?"28%":"76%"}}/></div>
+        <small>APRESENTAÇÃO VISUAL · NENHUM DADO É ALTERADO</small>
+      </div>}
+      <button className="nexora-update-dismiss" aria-label="Fechar novidades" onClick={onClose}>×</button>
+      <div className="nexora-update-stage">
+        <div className="nexora-update-mesh" aria-hidden="true"/>
+        <div className="nexora-update-radar" aria-hidden="true"><span>N</span><i/><i/><i/></div>
+        <span className="nexora-update-tag">NEXORA / COMPLIANCE ONE · ENTERPRISE</span>
+        <h2>O próximo nível da<br/><em>inteligência em conformidade.</em></h2>
+        <p>Uma experiência mais clara para transformar diagnósticos em decisões responsáveis.</p>
+        <div className="nexora-update-loader" aria-label={phase===2?"Apresentação pronta":"Preparando apresentação"}>
+          <span style={{width:phase===0?"24%":phase===1?"73%":"100%"}}/>
+        </div>
+        <small>{phase===2?"✓ NOVIDADES PRONTAS PARA EXPLORAR":"PREPARANDO APRESENTAÇÃO DAS NOVIDADES..."}</small>
+      </div>
+      <div className="nexora-update-details">
+        <div className="nexora-update-overline">RELEASE EXPERIENCE <b>{String(active+1).padStart(2,"0")} / {String(highlights.length).padStart(2,"0")}</b></div>
+        <h3>Descubra o que evoluiu.</h3>
+        <div className="nexora-update-tabs" role="tablist" aria-label="Áreas da atualização">{highlights.map((item,index)=><button key={item.title} role="tab" aria-selected={active===index} className={active===index?"selected":""} onClick={()=>setActive(index)}>{String(index+1).padStart(2,"0")}</button>)}</div>
+        <div className="nexora-update-feature" key={feature.title}><div className="nexora-update-feature-icon">{feature.icon}</div><strong>{feature.title}</strong><p>{feature.detail}</p></div>
+        <div className="nexora-update-foot"><button onClick={()=>onExplore(feature.page)}>{feature.label} ↗</button><button className="nexora-update-later" onClick={onClose}>Continuar no painel</button></div>
+        <p className="nexora-update-disclaimer">Esta é uma apresentação das funcionalidades da versão publicada. Nenhuma instalação ou alteração de dados ocorre ao visualizar as novidades.</p>
+      </div>
+    </section>
+  </div>;
+}
+
 function FirstAccess({onStart,onDemo}){
   const [boot,setBoot]=useState(false),[stage,setStage]=useState(0);
-  useEffect(()=>{if(!boot)return;const t=setInterval(()=>setStage(x=>Math.min(4,x+1)),1600);return()=>clearInterval(t)},[boot]);
+  useEffect(()=>{if(!boot)return;const t=setInterval(()=>setStage(x=>Math.min(4,x+1)),130);return()=>clearInterval(t)},[boot]);
   const lines=["Inicializando Intelligence Core","Mapeando arquitetura de Compliance","Preparando Risk Engine","Preparando Legal Intelligence","Ambiente pronto"];
   return <div className={"ai-entry "+(boot?"booting":"")}>
     <div className="ai-stars"/><div className="ai-grid-floor"/><div className="ai-vignette"/>
-    <div className="ai-top"><span><i/> NEXUS INTELLIGENCE</span><small>SECURE ENVIRONMENT · ONLINE</small></div>
+    <div className="ai-top"><span><i/> NEXORA COMPLIANCE ONE</span><small>ENTERPRISE INTELLIGENCE · ACESSO SEGURO</small></div>
     <div className="ai-center"><div className="ai-core"><div className="core-scan"/><b>N</b><span>AI</span></div><div className="ai-orbit a"/><div className="ai-orbit b"/><div className="ai-orbit c"/>
       <div className="ai-node n1">RISK<br/><b>ENGINE</b></div><div className="ai-node n2">LEGAL<br/><b>CORE</b></div><div className="ai-node n3">DATA<br/><b>INTELLIGENCE</b></div>
     </div>
     <div className="ai-copy"><div className="ai-kicker"><span/> SISTEMA INTELIGENTE DE GOVERNANÇA</div>
-      <h1>Compliance.<br/><em>Elevado pela inteligência.</em></h1>
-      <p>Uma experiência clean e tecnológica para diagnosticar a empresa, antecipar riscos e conduzir todo o processo até a conclusão.</p>
-      {!boot?<div className="ai-actions"><button className="ai-start" onClick={()=>{setBoot(true);setTimeout(onStart,8000)}}>INICIAR EXPERIÊNCIA <b>→</b></button><button className="ai-demo" onClick={onDemo}>Acessar ambiente DEMO</button><button className="ai-skip" onClick={onStart}>Entrar no sistema</button></div>:
+      <h1>Integridade que protege.<br/><em>Inteligência que transforma.</em></h1>
+      <p>Diagnósticos, riscos, planos de ação e evidências em uma jornada executiva. Decisões relevantes permanecem sob responsabilidade humana.</p>
+      {!boot?<div className="ai-actions"><button className="ai-start" onClick={()=>{setBoot(true);setTimeout(onStart,650)}}>INICIAR EXPERIÊNCIA <b>→</b></button><button className="ai-demo" onClick={onDemo}>Acessar ambiente DEMO</button><button className="ai-skip" onClick={onStart}>Entrar no sistema</button></div>:
       <div className="ai-boot"><div className="bootbar"><i style={{width:(stage+1)*20+"%"}}/></div>{lines.map((x,i)=><div className={"bootline "+(i<=stage?"on":"")} key={x}><span>{i<=stage?"✓":"○"}</span>{x}</div>)}</div>}
       <div className="ai-caps">{["IA & ANALYTICS","RISK ENGINE","LEGAL INTELLIGENCE","EXECUTIVE REPORT"].map(x=><span key={x}>● {x}</span>)}</div>
     </div>
-    <div className="ai-bottom"><span>ENCRYPTED WORKSPACE</span><span>REAL-TIME AUDIT TRAIL</span><span>VERSION 124 · PREMIUM ENTERPRISE CORE</span></div>
+    <div className="ai-bottom"><span>GESTÃO DE RISCOS</span><span>RASTREABILIDADE DE EVIDÊNCIAS</span><span>NEXORA · ENTERPRISE INTELLIGENCE</span></div>
   </div>
 }
 
@@ -1303,21 +1454,6 @@ function NexusPremiumOverview({s,maturity,progress,stats,go}){
 function Dashboard({s,maturity,progress,stats,go}){
   const hasCompany=!!s.company.name;
   return <div className="command-center">
-    <NexusV125CommandCenter s={s} maturity={maturity} progress={progress} stats={stats} go={go}/>
-    <NexusAICommandCenter s={s} maturity={maturity} progress={progress} stats={stats} go={go}/>
-    <NexusDecisionEngine s={s} maturity={maturity} go={go}/>
-    <NexusPredictiveIntelligence s={s} maturity={maturity} go={go}/>
-    <NexusComplianceDNA s={s} maturity={maturity} go={go}/>
-    <NexusCommandGraph s={s} go={go}/>
-    <NexusExecutiveIntelligence s={s} maturity={maturity} go={go}/>
-    <NexusAutonomousActionCenter s={s} go={go}/>
-      <NexusPremiumOverview s={s} maturity={maturity} progress={progress} stats={stats} go={go}/>
-      <NexusExecutiveRadar s={s} go={go}/>
-      <NexusAICore s={s} go={go}/>
-      <NexusAdaptiveEngine s={s} go={go}/>
-      <NexusComplianceOrchestrator s={s} go={go}/>
-      <NexusIntelligenceEngine s={s} go={go}/>
-      <NexusEnterprisePanel s={s} setPage={go}/>
     <div className="command-hero">
       <div className="hero-glow glow-a"></div><div className="hero-glow glow-b"></div>
       <div className="hero-copy">
@@ -1421,15 +1557,17 @@ function CompanyPage({s,open}){return <div className="page"><Panel title="Cadast
 function Diagnosis({s,maturity,finish}){return <div className="page"><div className="hero compact"><div><small>NEXUS DIAGNOSTIC ENGINE</small><h1>Diagnóstico de maturidade</h1><p>{s.company.segment} · {s.company.size}</p></div><div className="orb"><b>{maturity}%</b><small>estimativa inicial</small></div></div><Panel title="O que será automatizado" sub="Você não precisará montar manualmente a matriz ou o plano de ação."><div className="auto-grid">{["Questionário setorial","Matriz automática","Causas prováveis","Recomendações","Plano de ação","Triagem jurídica","Relatório executivo"].map(x=><div key={x}><b>✓</b><span>{x}</span></div>)}</div></Panel><Advance title="Etapa 1 · Diagnóstico" text="Perfil carregado. Avance para responder o questionário inteligente." onClick={finish}/></div>}
 
 function Questionnaire({s,questions,answered,answer,finish}){
-  const firstUnanswered=Math.max(0,questions.findIndex(q=>!s.answers[q.id]));
+  const firstUnanswered=(()=>{const n=questions.findIndex(q=>!Object.prototype.hasOwnProperty.call(s.answers,q.id));return n<0?Math.max(0,questions.length-1):n})();
+  const answeredByArea=useMemo(()=>{const counts=new Map();for(const question of questions){if(Object.prototype.hasOwnProperty.call(s.answers,question.id))counts.set(question.area,(counts.get(question.area)||0)+1)}return counts},[questions,s.answers]);
   const [index,setIndex]=useState(firstUnanswered);
-  useEffect(()=>setIndex(firstUnanswered),[s.company.name,s.company.segment,s.company.size,s.globalProfile?.jurisdictions?.join("|"),firstUnanswered]);
+  useEffect(()=>setIndex(firstUnanswered),[s.company.segment]);
 
+  const areas=useMemo(()=>[...new Set(questions.map(item=>item.area))],[questions]);
   const q=questions[Math.min(index,questions.length-1)];
   const value=q ? s.answers[q.id] : null;
   const isLast=index>=questions.length-1;
   const completed=answered===questions.length;
-  const pct=Math.round(answered/questions.length*100);
+  const pct=Math.round(answered/Math.max(1,questions.length)*100);
 
   function choose(v){
     answer(q.id,v);
@@ -1453,11 +1591,19 @@ function Questionnaire({s,questions,answered,answer,finish}){
 
     <div className="q-linear"><i style={{width:pct+"%"}}/></div>
 
+    <div className="q-area-toolbar" style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",margin:"20px 0",padding:"16px",background:"rgba(12,29,49,.9)",border:"1px solid #27445e",borderRadius:16}}>
+      <label htmlFor="diagnostic-area" style={{fontWeight:700}}>Área de avaliação</label>
+      <select id="diagnostic-area" value={q?.area||""} onChange={e=>{const next=questions.findIndex(item=>item.area===e.target.value);if(next>=0)setIndex(next)}} style={{minWidth:240,maxWidth:"100%",padding:12,borderRadius:10,background:"#10253c",color:"#fff",border:"1px solid #35526d"}}>
+        {areas.map(area=><option key={area} value={area}>{area} ({answeredByArea.get(area)||0}/25)</option>)}
+      </select>
+      <span style={{color:"#9db5ce"}}>32 áreas · 25 verificações por área · 800 perguntas por ramo</span>
+      <button className="secondary" onClick={()=>setIndex(firstUnanswered)}>Continuar de onde parei</button>
+    </div>
     {q && <section className="single-question-card" key={q.id}>
       <div className="q-meta"><span>PERGUNTA {index+1} DE {questions.length}</span><b>{q.area}</b></div>
       <div className="q-number">{String(index+1).padStart(2,"0")}</div>
       <h2>{q.text}</h2>
-      <p className="q-hint">Selecione uma resposta. Assim que responder, a próxima pergunta será apresentada automaticamente.</p>
+      <p className="q-hint">{q.evidenceHint||"Selecione uma resposta."} Responda com base em evidências verificáveis; N/A deve ser justificado na revisão.</p>
       <div className="q-options">
         {["Sim","Parcialmente","Não","N/A"].map(v=>
           <button className={value===v?"q-option selected":"q-option"} key={v} onClick={()=>choose(v)}>
@@ -1546,11 +1692,13 @@ function AutoLegal({s,confirm,finish}){return <div className="page"><div classNa
 function Report({s,maturity,progress,print,setS,framework={selected:[]}}){
   const ready=s.workflow.juridico&&s.review.confirmedLegal;
   const risks=s.risks||[], actions=s.actions||[], legal=s.legal||[], docs=s.documents||[], evidence=s.evidence||[];
+  const diagnostic=executiveDiagnosticSummary(buildEnterpriseQuestions(s.company.segment),s.answers||{},{risks,actions,legal});
+  const actionsByRisk=new Map(actions.map(a=>[a.riskId,a]));
   const sections=[
-    ["01","Resumo Executivo",`A empresa ${s.company.name||"organização"} apresenta maturidade estimada em ${maturity}%, com ${risks.length} riscos, ${actions.length} ações, ${legal.length} triagens jurídicas e ${evidence.length} evidências registradas.`],
+    ["01","Resumo Executivo",`A empresa ${s.company.name||"organização"} apresenta maturidade estimada em ${maturity}%, com ${diagnostic.answered}/${diagnostic.total} respostas válidas (${diagnostic.percent}% concluído), ${diagnostic.noncompliant} não conformidades, ${diagnostic.partial} controles parciais, ${risks.length} riscos, ${actions.length} ações, ${legal.length} triagens jurídicas e ${evidence.length} evidências registradas.`],
     ["02","Perfil e Escopo",`Segmento: ${s.company.segment||"—"} · Porte: ${s.company.size||"—"} · Modelo: ${s.company.mode||"—"} · Jurisdições: ${(s.globalProfile?.jurisdictions||["BR"]).join(", ")}.`],
     ["03","Matriz de Riscos",risks.length?risks.slice(0,12).map(r=>`${r.level} · ${r.title} · Score ${r.score} · Responsável ${r.responsible||"Compliance"}`).join(" | "):"Nenhum risco registrado."],
-    ["04","Causas e Soluções",risks.length?risks.slice(0,12).map((r,i)=>`${r.title}: causa — ${r.cause||"validar"}; solução — ${actions[i]?.title||r.recommendation||"definir"}.`).join(" "):"Sem achados."],
+    ["04","Causas e Soluções",risks.length?risks.slice(0,12).map((r,i)=>`${r.title}: causa — ${r.cause||"validar"}; solução — ${actionsByRisk.get(r.id)?.title||r.recommendation||"definir"}.`).join(" "):"Sem achados."],
     ["05","Plano de Ação",actions.length?actions.slice(0,12).map(a=>`${a.priority} · ${a.title} · ${a.responsible||"Não definido"} · ${a.status}`).join(" | "):"Nenhuma ação gerada."],
     ["06","Jurídico",legal.length?legal.map(j=>`${j.title} · ${j.status}`).join(" | "):"Nenhum encaminhamento jurídico identificado pelo motor."],
     ["07","Documentos",docs.length?docs.map(d=>d.name).join(" · "):"Biblioteca documental ainda não gerada."],
@@ -1559,6 +1707,7 @@ function Report({s,maturity,progress,print,setS,framework={selected:[]}}){
     ["10","Prevenção e Perdas","Priorizar riscos críticos, ações com evidência, terceiros de maior exposição, controles financeiros, continuidade, privacidade e obrigações regulatórias aplicáveis."],
     ["11","Governança","Responsabilidades, alçadas, decisões críticas, conflitos, reporte e supervisão devem permanecer rastreáveis."],
     ["12","Monitoramento","A matriz deve ser revisada quando respostas, riscos, ações, evidências ou perfil da empresa forem alterados."],
+    ["13","Auditoria e Integridade",`${(s.auditTrail||[]).length} alterações de respostas registradas. Vínculos entre riscos e ações: ${diagnostic.integrity.valid?"consistentes":"necessitam revisão"}. Respostas pendentes: ${diagnostic.pending}. Registros anteriores ignorados no progresso: ${diagnostic.ignoredLegacyAnswers}.`],
   ];
   return <div className="page">
     <div className={"final "+(ready?"ready":"")}><div><small>{ready?"PROCESSO PRONTO":"PROCESSO EM ANDAMENTO"}</small><h1>{ready?"Relatório Executivo Liberado":"Finalize as etapas anteriores"}</h1><p>{progress}% concluído.</p></div><button className="primary" disabled={!ready} onClick={print}>🖨 Gerar / Imprimir Relatório Premium</button></div>
@@ -1627,7 +1776,26 @@ function CompanyModal({close,save,current}){const [f,setF]=useState(current);ret
 
 function DenModal({close,save}){const [f,setF]=useState({mode:"Anônima",category:"Conflito de interesses",severity:"Média",description:"",location:"",involved:""});return <Modal title="Registrar denúncia" close={close}><div className="secure-note">🔐 Canal independente · a identidade não é exigida na modalidade anônima.</div><div className="form"><label>Modalidade<select value={f.mode} onChange={e=>setF({...f,mode:e.target.value})}><option>Anônima</option><option>Identificada</option></select></label><label>Categoria<select value={f.category} onChange={e=>setF({...f,category:e.target.value})}>{["Conflito de interesses","Fraude","Assédio","Corrupção","Violação de políticas","Lavagem de dinheiro","Privacidade / Dados","Meio ambiente","Segurança","Outros"].map(x=><option key={x}>{x}</option>)}</select></label><label>Gravidade<select value={f.severity} onChange={e=>setF({...f,severity:e.target.value})}><option>Baixa</option><option>Média</option><option>Alta</option><option>Crítica</option></select></label><label>Local<input value={f.location} onChange={e=>setF({...f,location:e.target.value})}/></label><label>Envolvidos / referência<input value={f.involved} onChange={e=>setF({...f,involved:e.target.value})}/></label><label>Relato<textarea value={f.description} onChange={e=>setF({...f,description:e.target.value})}/></label><button className="primary" onClick={()=>save(f)}>Gerar protocolo</button></div></Modal>}
 
-function Denunciations({s,open,select}){return <div className="page"><div className="secure"><div><small>NEXUS SECURE ETHICS CHANNEL</small><h1>Canal de Denúncias</h1><p>Separado do fluxo operacional. Anônimo ou identificado, com protocolo e rastreabilidade.</p></div><button className="primary" onClick={open}>+ Nova denúncia</button></div><Panel title="Protocolos" sub="Acesso independente e histórico por ocorrência.">{s.denunciations.map(d=><button className="case" key={d.id} onClick={()=>select(d)}><div><strong>{d.protocol}</strong><span>{d.category}</span></div><b>{d.severity}</b><span>{d.status}</span><small>{d.mode}</small></button>)}{!s.denunciations.length&&<div className="empty">Nenhuma denúncia registrada.</div>}</Panel></div>}
+function Denunciations({apiUser}){
+ const [link,setLink]=useState(""),[error,setError]=useState(""),[busy,setBusy]=useState(false);
+ const [name,setName]=useState(""),[email,setEmail]=useState(""),[password,setPassword]=useState("");
+ const [members,setMembers]=useState([]);
+ const refreshMembers=()=>apiGet("/ethics/team-members").then(x=>setMembers(x.members||[]));
+ useEffect(()=>{if(apiUser?.role!=="Administrador")return;apiGet("/ethics/channel").then(x=>setLink(x.publicPath||"")).catch(e=>setError(e.message));refreshMembers().catch(e=>setError(e.message))},[apiUser?.role,apiUser?.email]);
+ const create=async()=>{setBusy(true);setError("");try{const x=await apiPost("/ethics/channel",{});setLink(x.publicPath)}catch(e){setError(e.message)}finally{setBusy(false)}};
+ const addTeam=async()=>{setBusy(true);setError("");try{await apiPost("/users",{name,email,password,role:"Equipe de Apuração"});setName("");setEmail("");setPassword("");alert("Acesso individual criado. Compartilhe a senha de forma privada com o profissional autorizado.")}catch(e){setError(e.message)}finally{setBusy(false)}};
+ const authorizeSelf=async()=>{setBusy(true);setError("");try{await apiPost("/ethics/team-members",{email:apiUser.email});await refreshMembers()}catch(e){setError(e.message)}finally{setBusy(false)}};
+ const revokeSelf=async()=>{setBusy(true);setError("");try{await apiPost("/ethics/team-members/revoke",{email:apiUser.email});await refreshMembers()}catch(e){setError(e.message)}finally{setBusy(false)}};
+ const selfAuthorized=members.some(x=>x.email?.toLowerCase()===apiUser?.email?.toLowerCase());
+ return <div className="page nx-ethics-page"><div className="secure"><div><small>NEXORA · ETHICS & INTEGRITY</small><h1>Canal de Denúncias</h1><p>Links públicos por organização e acesso exclusivo da equipe de apuração.</p></div><a className="primary" style={{padding:13,borderRadius:10,textDecoration:"none"}} href="/equipe-denuncias">Entrar como equipe responsável ↗</a></div>
+ <Panel title="Portal independente" sub="A pessoa denunciante não precisa ter conta no Compliance One.">
+  <p>Os relatos são cifrados no servidor. A direção e os usuários administrativos comuns não acessam o conteúdo; somente os profissionais designados com perfil de apuração.</p>
+  {apiUser?.role==="Administrador"?<><p><b>Link público da organização</b></p>{link?<div className="secure-note nx-ethics-access"><a href={link} target="_blank" rel="noopener noreferrer" title="Abrir o portal público de denúncias">{location.origin+link}</a><button className="ghost" onClick={()=>navigator.clipboard?.writeText(location.origin+link)}>Copiar link</button></div>:<button className="primary" disabled={busy} onClick={create}>Ativar link de denúncias</button>}
+  <h3 style={{marginTop:24}}>Permissão de apuração da minha conta</h3><p>A autorização é independente do perfil administrativo, restrita a esta empresa e registrada em auditoria.</p><div className="secure-note nx-ethics-access"><div className="nx-ethics-identity"><b>{apiUser.email}</b><span>{selfAuthorized?"Acesso à apuração autorizado":"Sem permissão de apuração"}</span></div><button className={selfAuthorized?"ghost":"primary"} disabled={busy} onClick={selfAuthorized?revokeSelf:authorizeSelf}>{selfAuthorized?"Revogar meu acesso":"Autorizar meu acesso à apuração"}</button></div>
+  <h3 style={{marginTop:24}}>Cadastrar integrante da equipe de apuração</h3><p>Cadastre apenas pessoas formalmente designadas. Cada uma terá login próprio; administradores também podem receber uma permissão adicional, sem trocar de perfil.</p><div className="form"><label>Nome<input value={name} onChange={e=>setName(e.target.value)}/></label><label>E-mail institucional<input type="email" value={email} onChange={e=>setEmail(e.target.value)}/></label><label>Senha inicial (mínimo 12 caracteres)<input type="password" value={password} onChange={e=>setPassword(e.target.value)}/></label><button className="primary" disabled={busy||!name.trim()||!email.includes("@")||password.length<12} onClick={addTeam}>Criar acesso restrito</button></div></>:<p className="secure-note">{apiUser?"A configuração do link e da equipe cabe ao administrador da organização. O conteúdo dos relatos é reservado à equipe de apuração.":"Conecte a API com uma conta administrativa para configurar o link público e os acessos da equipe."}</p>}
+  {error&&<p role="alert" className="secure-note">⚠ {error}</p>}
+ </Panel></div>
+}
 
 function PrintableDocument({doc,close}){
   const c=doc.content||{title:doc.name,purpose:doc.description,sections:[],disclaimer:""};
@@ -1647,3 +1815,50 @@ return <Modal title={x.protocol} close={close}><div className="detail"><h2>{x.ca
 function Modal({title,close,children}){return <div className="modal-bg" onMouseDown={close}><div className="modal" onMouseDown={e=>e.stopPropagation()}><header><h2>{title}</h2><button onClick={close}>×</button></header>{children}</div></div>}
 
 class NexusErrorBoundary extends React.Component { constructor(p){super(p);this.state={error:null}} static getDerivedStateFromError(error){return {error}} render(){if(this.state.error)return <div style={{minHeight:'100vh',background:'#06101d',color:'#eaf3ff',padding:'40px',fontFamily:'system-ui'}}><h1>NEXUS encontrou um erro de execução</h1><p style={{color:'#8fa6bf'}}>A aplicação não ficou em branco silenciosamente. O erro abaixo identifica o ponto que precisa ser corrigido.</p><pre style={{whiteSpace:'pre-wrap',background:'#0b192a',padding:'18px',borderRadius:'12px',color:'#ff9e9e'}}>{String(this.state.error?.stack||this.state.error)}</pre><button onClick={()=>location.reload()} style={{padding:'12px 18px',borderRadius:'8px',border:0}}>Recarregar</button></div>;return this.props.children}} function App(){return <NexusErrorBoundary><AppCore/></NexusErrorBoundary>} export default App;
+
+function RegulatoryReviewPanel({s,setS,notify,questions,reviewer}){
+ const [selected,setSelected]=useState("");
+ const [decision,setDecision]=useState("EM ANÁLISE");
+ const [notes,setNotes]=useState("");
+ const summary=regulatoryIntelligenceSummary(s.company.segment,questions,s.regulatoryReviews||[]);
+ const briefing=generateComplianceBriefing({
+  segment:s.company?.segment||"",
+  questions:questions||[],
+  answers:s.answers||{},
+  risks:s.risks||[],
+  actions:s.actions||[],
+  reviews:s.regulatoryReviews||[]
+ });
+ const entry=summary.entries.find(x=>x.id===selected);
+ const save=()=>{
+  if(!entry)return;
+  try{
+   const review=createRegulatoryReview(entry,reviewer,decision,notes);
+   setS(prev=>({...prev,regulatoryReviews:[...(prev.regulatoryReviews||[]).filter(r=>r.id!==review.id),review],history:[...(prev.history||[]),{id:uid("LOG"),text:"Revisão regulatória registrada: "+review.reference+" ("+review.decision+")",date:now()}]}));
+   notify("Revisão regulatória registrada com responsável e fonte.");
+  }catch(err){notify(err.message)}
+ };
+ return <section style={{padding:20,margin:"16px 0",border:"1px solid #526b81",borderRadius:12}}>
+  <h2>Inteligência regulatória · fontes oficiais</h2>
+  <p>Catálogo de referência {summary.catalogVersion}. Não há consulta automática a diários oficiais nesta versão. Vigência, alterações, aplicabilidade e obrigações devem ser confirmadas por responsável jurídico.</p>
+  <details><summary>Assistente de prioridades · análise explicável</summary>
+    <p>{briefing.engine}. Não realiza consultas automáticas à legislação nem substitui análise jurídica.</p>
+    <p>{briefing.overview.noncompliant} respostas que exigem atenção · {briefing.overview.risks} riscos · {briefing.overview.actions} ações</p>
+    {briefing.priorities.map(r=><p key={r.riskId}><strong>{r.title}</strong> · {r.level} · {r.nextStep} · Origem: {r.questionId||"Framework"}</p>)}
+  </details>
+  <p>{summary.entries.length} referências potencialmente relevantes · {summary.reviewed} revisadas · {summary.pending} pendentes</p>
+  <div style={{display:"grid",gap:8}}>{summary.entries.map(r=><div key={r.id} style={{padding:10,border:"1px solid #526b81",borderRadius:8}}>
+   <strong>{r.reference} — {r.name}</strong>
+   <p>{r.review?.decision||r.status} · {r.currency}</p>
+   <p>{r.review?.notes||r.review===null&&r.review}</p>
+   <a href={r.url} target="_blank" rel="noopener noreferrer">Consultar fonte oficial</a>
+   <button style={{marginLeft:12}} onClick={()=>{setSelected(r.id);setDecision(r.review?.decision||"EM ANÁLISE");setNotes(r.review?.notes||"")}}>Analisar</button>
+  </div>)}</div>
+  {entry&&<div style={{padding:14,marginTop:12,border:"1px solid #526b81",borderRadius:8}}>
+   <h3>Revisão humana: {entry.reference}</h3>
+   <select value={decision} onChange={e=>setDecision(e.target.value)}><option>EM ANÁLISE</option><option>APLICÁVEL</option><option>NÃO APLICÁVEL</option></select>
+   <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Fundamentação, verificação de vigência e escopo" style={{display:"block",width:"100%",margin:"12px 0"}}/>
+   <button onClick={save}>Registrar revisão</button>
+  </div>}
+ </section>;
+}
