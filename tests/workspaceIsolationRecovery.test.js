@@ -17,7 +17,7 @@ test("tenant isolation and workspace persistence across server restart", {timeou
  const secret="test-bootstrap-secret";
  let child;
  const start=async()=>{
-  child=spawn(process.execPath,["server/index.js"],{env:{...process.env,PORT:String(port),DATABASE_PATH:dbPath,JWT_SECRET:jwtSecret,BOOTSTRAP_SECRET:secret,NODE_ENV:"test"},stdio:"ignore"});
+  child=spawn(process.execPath,["server/index.js"],{env:{...process.env,PORT:String(port),DATABASE_PATH:dbPath,EVIDENCE_STORAGE_PATH:join(dir,"evidence"),JWT_SECRET:jwtSecret,BOOTSTRAP_SECRET:secret,NODE_ENV:"test"},stdio:"ignore"});
   for(let i=0;i<100;i++){
    if(child.exitCode!==null)throw Error("Server exited");
    try{const r=await fetch(base+"/health");if(r.ok)return}catch{}
