@@ -16,7 +16,7 @@ export default function ReleaseCenter(){
     const response=await fetch("/release-version.json?t="+Date.now(),{cache:"no-store"});
     if(!response.ok)return;
     const data=await response.json();
-    if(active&&/^\\d+\\.\\d+\\.\\d+$/.test(data.version)&&compare(data.version,CURRENT_RELEASE)>0)setLatest(data.version);
+    if(active&&/^\d+\.\d+\.\d+$/.test(data.version)&&compare(data.version,CURRENT_RELEASE)>0)setLatest(data.version);
    }catch{/* No notification on connectivity failures. */}
   }
   check();
