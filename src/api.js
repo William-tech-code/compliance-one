@@ -89,6 +89,7 @@ export async function login(dataOrEmail, password) {
     body: JSON.stringify({
       email: String(data.email || "").trim().toLowerCase(),
       password: String(data.password || ""),
+      ...(data.totpCode?{totpCode:String(data.totpCode)}:{}),
     }),
   });
 

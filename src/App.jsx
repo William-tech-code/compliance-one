@@ -931,8 +931,8 @@ function AppCore() {
     }
   }
 
-  async function handleApiLogin(email,password){
-    const session=await login(email,password);
+  async function handleApiLogin(email,password,totpCode){
+    const session=await login({email,password,totpCode});
     await connectApi(session);
     setModal(null);
     setShowEntry(false);
@@ -1248,6 +1248,7 @@ function attach(files,owner,ownerId) {
           <button aria-label="Ir ao Canal de Denúncias" onClick={()=>setPage("denuncias")}>⚑ Canal de Denúncias</button>
           <button className="nexora-update-bell" aria-label="Abrir central de novidades e atualizações" onClick={()=>document.getElementById("nexora-update-center")?.scrollIntoView({behavior:"smooth",block:"start"})}>♧ <span>Novidades</span><i aria-hidden="true"/></button>
           <button onClick={()=>setModal("company")}>✎ Editar empresa</button>
+          {apiUser&&<button onClick={()=>setModal("mfa")}>◇ Segurança MFA</button>}
           <button onClick={exportBackup}>↓ Backup</button>
           {apiUser && <button onClick={openVersionHistory}>◷ Histórico de versões</button>}
           <label className="top-file">↑ Restaurar<input hidden type="file" accept="application/json,.json" onChange={e=>restoreBackup(e.target.files?.[0])}/></label>
@@ -1299,6 +1300,7 @@ function attach(files,owner,ownerId) {
     </main>
 
     {modal==="auth" && <AuthModal close={()=>setModal(null)} onLogin={handleApiLogin} onBootstrap={handleApiBootstrap}/>}
+    {modal==="mfa" && <MfaSetup close={()=>setModal(null)} onEnabled={()=>{setModal(null);disconnectApi()}}/>}
     {modal==="company" && <CompanyModal close={()=>setModal(null)} save={saveCompany} current={s.company}/>}
     {modal==="den" && <DenModal close={()=>setModal(null)} save={d=>{
       const protocol=`DEN-${new Date().getFullYear()}-${String(Date.now()).slice(-8)}`;
@@ -1731,6 +1733,8 @@ function AuthModal({close,onLogin,onBootstrap}){
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const [success,setSuccess]=useState("");
+  const [totpCode,setTotpCode]=useState("");
+  const [mfaRequired,setMfaRequired]=useState(false);
 
   async function recover(){
     setBusy(true);setError("");setSuccess("");
@@ -1756,12 +1760,14 @@ function AuthModal({close,onLogin,onBootstrap}){
     setBusy(true);
     try{
       if(mode==="login"){
-        await onLogin(email,password);
+        await onLogin(email,password,totpCode);
       }else{
         await onBootstrap({companyName:companyName.trim(),segment,size,adminName:adminName.trim(),email:email.trim(),password});
       }
     }catch(err){
-      setError(String(err?.message||"Não foi possível concluir a operação."));
+      if(err?.message==='MFA_REQUIRED'){
+        setMfaRequired(true);setError('Digite o código de seis dígitos do aplicativo autenticador.');
+      }else setError(String(err?.message||"Não foi possível concluir a operação."));
     }finally{
       setBusy(false);
     }
@@ -1788,6 +1794,7 @@ function AuthModal({close,onLogin,onBootstrap}){
       </>}
       <label>E-mail<input type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="username" placeholder="administrador@empresa.com"/></label>
       <label>Senha<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode==="login"?"current-password":"new-password"} placeholder="••••••••"/></label>
+      {mode==='login'&&mfaRequired&&<label>Código do autenticador<input type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" value={totpCode} onChange={e=>setTotpCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000000"/></label>}
       {error&&<div className="secure-note">⚠ {error}</div>}
       {success&&<div className="secure-note" role="status">✓ {success}</div>}
       <div className="form-note">🔐 A autenticação usa JWT no backend V124. O workspace permanece local quando a API não estiver conectada.</div>
@@ -1796,6 +1803,33 @@ function AuthModal({close,onLogin,onBootstrap}){
       </>}
     </div>
   </Modal>
+}
+
+function MfaSetup({close,onEnabled}){
+  const [password,setPassword]=useState(''),[code,setCode]=useState(''),[secret,setSecret]=useState(''),[uri,setUri]=useState('');
+  const [busy,setBusy]=useState(false),[error,setError]=useState('');
+  const enroll=async()=>{
+    setBusy(true);setError('');
+    try{const result=await apiPost('/auth/mfa/enroll',{password});setSecret(result.secret);setUri(result.otpauthUri);setPassword('')}
+    catch(e){setError(e.message)}finally{setBusy(false)}
+  };
+  const confirm=async()=>{
+    setBusy(true);setError('');
+    try{await apiPost('/auth/mfa/confirm',{code});onEnabled()}
+    catch(e){setError(e.message)}finally{setBusy(false)}
+  };
+  return <Modal title="Segurança da conta · MFA" close={close}>
+    <div className="form">
+      <p>Ative uma segunda etapa de autenticação com um aplicativo compatível com códigos TOTP. Guarde a chave em local seguro e não a compartilhe.</p>
+      {!secret?<><label>Confirme sua senha<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)}/></label><button className="primary" disabled={busy||!password} onClick={enroll}>Iniciar ativação MFA</button></>
+        :<><div className="secure-note"><b>Chave de configuração (uso único)</b><p style={{overflowWrap:'anywhere',fontSize:16,letterSpacing:2}}>{secret}</p><small>Informe a chave no aplicativo autenticador. Não armazene esta chave em capturas de tela.</small></div>
+          <a href={uri} rel="nofollow">Abrir no aplicativo autenticador ↗</a>
+          <label>Código de confirmação<input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,'').slice(0,6))}/></label>
+          <button className="primary" disabled={busy||code.length!==6} onClick={confirm}>Confirmar e ativar MFA</button></>}
+      {error&&<p role="alert" className="secure-note">⚠ {error}</p>}
+      <p className="form-note">Após ativar, você precisará entrar novamente. A recuperação de MFA exige um procedimento de suporte com verificação de identidade.</p>
+    </div>
+  </Modal>;
 }
 
 function CompanyModal({close,save,current}){const [f,setF]=useState(current);return <Modal title="Cadastro da empresa" close={close}><div className="form">{[["name","Nome / Razão social"],["document","CNPJ / Identificação"],["city","Cidade / UF"],["responsible","Responsável pelo Compliance"],["director","Diretor"]].map(([k,l])=><label key={k}>{l}<input value={f[k]||""} onChange={e=>setF({...f,[k]:e.target.value})}/></label>)}<label>Segmento<select value={f.segment} onChange={e=>setF({...f,segment:e.target.value})}><option value="">Selecione</option>{SEGMENTS.map(x=><option key={x}>{x}</option>)}</select></label><label>Porte<select value={f.size} onChange={e=>setF({...f,size:e.target.value})}><option value="">Selecione</option>{SIZES.map(x=><option key={x}>{x}</option>)}</select></label><label>Modelo<select value={f.mode} onChange={e=>setF({...f,mode:e.target.value})}><option value="">Selecione</option>{MODES.map(x=><option key={x}>{x}</option>)}</select></label><div className="form-note">🌎 Depois do cadastro, use <b>Global Compliance</b> para informar jurisdições e exposição internacional. O motor recalcula os frameworks automaticamente.</div><button className="primary" onClick={()=>save(f)}>Salvar e iniciar</button></div></Modal>}

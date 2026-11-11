@@ -9,6 +9,7 @@ import {validateAiRequest,buildAiMessages} from "./aiSafety.js";
 import {configureWhistleblower} from "./whistleblower.js";
 import {createLoginProtection} from "./loginProtection.js";
 import {secureTokenMatches,validateAsaasEvent,sendResendEmail,hashResetToken,generateResetToken,sessionVersionValid} from "./v50Integrations.js";
+import {generateTotpSecret,encryptTotpSecret,decryptTotpSecret,verifyTotp} from './v50Mfa.js';
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -107,6 +108,11 @@ CREATE TABLE IF NOT EXISTS v50_asaas_events (
 if(!db.pragma('table_info(users)').some(column=>column.name==='session_version')){
   db.exec('ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0');
 }
+for(const [column,definition] of [
+  ['mfa_secret_enc','TEXT'],['mfa_pending_enc','TEXT'],['mfa_enabled','INTEGER NOT NULL DEFAULT 0'],['mfa_last_counter','INTEGER NOT NULL DEFAULT -1']
+]){
+  if(!db.pragma('table_info(users)').some(item=>item.name===column))db.exec(`ALTER TABLE users ADD COLUMN ${column} ${definition}`);
+}
 
 app.use(helmet());
 
@@ -124,6 +130,13 @@ const id = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
 const loginProtection = createLoginProtection();
 const resetAttempts=new Map();
+const mfaConfirmAttempts=new Map();
+function mfaEncryptionKey(){
+ const raw=process.env.MFA_ENCRYPTION_KEY;
+ if(!raw)return null;
+ const key=Buffer.from(raw,'base64');
+ return key.length===32?key:null;
+}
 
 // Sandbox integration: no charging, no automatic license activation.
 app.post('/api/integrations/asaas/webhook',(req,res)=>{
@@ -228,6 +241,39 @@ function authenticate(req, res, next) {
     });
   }
 }
+
+app.post('/api/auth/mfa/enroll',authenticate,async(req,res)=>{
+  const key=mfaEncryptionKey();
+  if(!key)return res.status(503).json({error:'MFA_NOT_CONFIGURED'});
+  const user=db.prepare('SELECT * FROM users WHERE id=? AND company_id=?').get(req.user.sub,req.user.companyId);
+  if(!user||user.mfa_enabled)return res.status(409).json({error:'MFA_ALREADY_ENABLED'});
+  if(typeof req.body?.password!=='string'||!await bcrypt.compare(req.body.password,user.password_hash))
+    return res.status(401).json({error:'INVALID_CREDENTIALS'});
+  const secret=generateTotpSecret();
+  db.prepare('UPDATE users SET mfa_pending_enc=? WHERE id=?').run(encryptTotpSecret(secret,key),user.id);
+  const uri='otpauth://totp/'+encodeURIComponent('NEXORA Compliance One:'+user.email)+'?secret='+secret+'&issuer='+encodeURIComponent('NEXORA Compliance One')+'&algorithm=SHA1&digits=6&period=30';
+  return res.json({secret,otpauthUri:uri});
+});
+
+app.post('/api/auth/mfa/confirm',authenticate,(req,res)=>{
+  const key=mfaEncryptionKey();
+  if(!key)return res.status(503).json({error:'MFA_NOT_CONFIGURED'});
+  const user=db.prepare('SELECT * FROM users WHERE id=? AND company_id=?').get(req.user.sub,req.user.companyId);
+  if(!user?.mfa_pending_enc||user.mfa_enabled)return res.status(409).json({error:'MFA_ENROLLMENT_REQUIRED'});
+  const attempt=mfaConfirmAttempts.get(user.id)||{count:0,until:Date.now()+300000};
+  if(Date.now()>attempt.until){attempt.count=0;attempt.until=Date.now()+300000}
+  if(attempt.count>=5)return res.status(429).json({error:'MFA_TOO_MANY_ATTEMPTS'});
+  attempt.count++;mfaConfirmAttempts.set(user.id,attempt);
+  if(mfaConfirmAttempts.size>10000)mfaConfirmAttempts.clear();
+  let counter;
+  try{counter=verifyTotp(decryptTotpSecret(user.mfa_pending_enc,key),req.body?.code)}
+  catch{return res.status(400).json({error:'MFA_CODE_INVALID'})}
+  if(counter===null)return res.status(400).json({error:'MFA_CODE_INVALID'});
+  db.prepare('UPDATE users SET mfa_secret_enc=mfa_pending_enc,mfa_pending_enc=NULL,mfa_enabled=1,mfa_last_counter=?,session_version=session_version+1 WHERE id=?')
+    .run(counter,user.id);
+  mfaConfirmAttempts.delete(user.id);
+  return res.json({ok:true,reauthRequired:true});
+});
 
 const permissions = {
   Administrador: ["*"],
@@ -620,6 +666,7 @@ app.post("/api/login", async (req, res) => {
   const {
     email,
     password,
+    totpCode,
   } = req.body || {};
 
   if(typeof email!=="string"||typeof password!=="string"||email.length>254||password.length>1024){
@@ -658,6 +705,19 @@ app.post("/api/login", async (req, res) => {
     return res.status(401).json({
       error: "INVALID_CREDENTIALS",
     });
+  }
+
+  if(user.mfa_enabled){
+    const key=mfaEncryptionKey();
+    if(!key)return res.status(503).json({error:'MFA_NOT_CONFIGURED'});
+    if(!totpCode)return res.status(401).json({error:'MFA_REQUIRED'});
+    let counter;
+    try{counter=verifyTotp(decryptTotpSecret(user.mfa_secret_enc,key),totpCode,{lastCounter:user.mfa_last_counter})}
+    catch{counter=null}
+    if(counter===null){loginProtection.failure(attempt.key);return res.status(401).json({error:'MFA_CODE_INVALID'})}
+    const result=db.prepare('UPDATE users SET mfa_last_counter=? WHERE id=? AND mfa_last_counter<?')
+      .run(counter,user.id,counter);
+    if(result.changes!==1){loginProtection.failure(attempt.key);return res.status(401).json({error:'MFA_CODE_REPLAYED'})}
   }
 
   const company = db

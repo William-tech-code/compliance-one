@@ -12,6 +12,7 @@ Status: **EM DESENVOLVIMENTO / NÃO HOMOLOGADO / NÃO PUBLICAR EM PRODUÇÃO**.
 - Interface de solicitação de recuperação e escolha de nova senha.
 - Sessões antigas invalidadas pelo contador de versão após troca de senha.
 - Política de elegibilidade da assinatura no Sandbox exige conciliação de empresa, cliente Asaas, assinatura, valor e status consultado de forma independente.
+- Fluxo de ativação TOTP MFA com confirmação de senha, segredo AES-256-GCM, validação de código e proteção contra repetição de código.
 
 ## Configuração exigida para homologação (não inserir valores no Git)
 
@@ -22,10 +23,11 @@ Status: **EM DESENVOLVIMENTO / NÃO HOMOLOGADO / NÃO PUBLICAR EM PRODUÇÃO**.
 | `RESEND_API_KEY` | Chave Resend de envio, preferencialmente restrita ao domínio |
 | `RESEND_FROM_EMAIL` | Remetente verificado |
 | `PUBLIC_APP_URL` | URL pública de staging para links de recuperação |
+| `MFA_ENCRYPTION_KEY` | Chave base64 com 32 bytes aleatórios, distinta de JWT e Resend; deve ter backup seguro |
 
 ## Bloqueadores para o lote completo
 
-- Implantar e testar MFA, revogação de sessão após reset, RBAC por recurso e revisão de isolamento.
+- Homologar MFA em dispositivos reais, recuperação segura de segundo fator, RBAC por recurso e revisão de isolamento.
 - Modelar clientes, planos, preços, assinaturas e conciliação ativa no Sandbox Asaas; somente pagamento confirmado e associado à organização poderá modificar licença.
 - Implementar expiração, inadimplência, suspensão segura e reativação; políticas comerciais precisam de definição.
 - Habilitar domínio Resend e validar entrega, erros, abuso e bounce em ambiente de testes.
