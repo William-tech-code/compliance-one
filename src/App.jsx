@@ -11,6 +11,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { buildEnterpriseQuestions } from "./enterpriseQuestionBank";
 import "./App.css";
 import "./NexoraRelease.css";
+import ReleaseCenter from "./ReleaseCenter";
 import "./NexoraExecutiveSystem.css";
 import { apiGet, apiPost, apiPut, bootstrapCompany, login, logout as apiLogout } from "./api";
 import NexusV125CommandCenter from "./NexusV125CommandCenter";
@@ -1284,6 +1285,7 @@ function attach(files,owner,ownerId) {
         <p>{operationalActions.total} ações registradas no novo fluxo · {operationalActions.overdue} vencidas · {operationalActions.pendingValidation} aguardando validação independente · {operationalActions.completed} concluídas</p>
         <small>Indicadores das ações do fluxo de evidências; não incluem ações legadas até sua migração.</small>
       </section>}
+      <ReleaseCenter/>
       <div className="content">
         <div className="steps">{steps.map(([k,l],i)=><button key={k} className={`${page===k?"current ":""}${s.workflow[k]?"done":""}`} onClick={()=>go(k)}><b>{s.workflow[k]?"✓":i+1}</b><span>{l}</span></button>)}</div>
 
