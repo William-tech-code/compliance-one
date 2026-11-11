@@ -10,6 +10,7 @@ import {configureWhistleblower} from "./whistleblower.js";
 import {createLoginProtection} from "./loginProtection.js";
 import {secureTokenMatches,validateAsaasEvent,sendResendEmail,hashResetToken,generateResetToken,sessionVersionValid} from "./v50Integrations.js";
 import {generateTotpSecret,encryptTotpSecret,decryptTotpSecret,verifyTotp} from './v50Mfa.js';
+import {canReadUserDirectory,canCreateUser,validateNewUser} from "./v51UserAccess.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -796,8 +797,8 @@ app.get("/api/me", authenticate, (req, res) => {
 app.get(
   "/api/users",
   authenticate,
-  requirePermission("company:read"),
   (req, res) => {
+    if(!canReadUserDirectory(req.user.role))return res.status(403).json({error:"FORBIDDEN"});
     const users = db
       .prepare(`
         SELECT
@@ -822,17 +823,8 @@ app.get(
 app.post(
   "/api/users",
   authenticate,
-  requirePermission("company:read"),
   async (req, res) => {
-    if (
-      !["Administrador", "Compliance"].includes(
-        req.user.role
-      )
-    ) {
-      return res.status(403).json({
-        error: "FORBIDDEN",
-      });
-    }
+    if(!canCreateUser(req.user.role))return res.status(403).json({error:"FORBIDDEN"});
 
     const {
       name,
@@ -841,22 +833,8 @@ app.post(
       role,
     } = req.body || {};
 
-    if (
-      !name ||
-      !email ||
-      !password ||
-      !permissions[role]
-    ) {
-      return res.status(400).json({
-        error: "MISSING_FIELDS",
-      });
-    }
-    if((role==="Equipe de Apuração"||role==="Administrador") && req.user.role!=="Administrador"){
-      return res.status(403).json({error:"PERFIL_PRIVILEGIADO_REQUER_ADMINISTRADOR"});
-    }
-    if(typeof password!=="string"||password.length<12){
-      return res.status(400).json({error:"PASSWORD_MIN_12"});
-    }
+    const validation=validateNewUser({name,email,password,role});
+    if(!validation.ok)return res.status(400).json({error:validation.error});
 
     const userId = id();
 
@@ -881,10 +859,10 @@ app.post(
     `).run(
       userId,
       req.user.companyId,
-      name,
-      email.toLowerCase(),
+      validation.name,
+      validation.email,
       passwordHash,
-      role,
+      validation.role,
       1,
       now()
     );
