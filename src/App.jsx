@@ -1652,6 +1652,31 @@ class NexusErrorBoundary extends React.Component { constructor(p){super(p);this.
   const [password,setPassword]=useState("");
   const [error,setError]=useState("");
   const [busy,setBusy]=useState(false);
+  const [showRelease,setShowRelease]=useState(false);
+  const releaseId="2026.11-premium";
+  const releaseNotes=[
+    "Novo acesso executivo com autenticação obrigatória.",
+    "Conexão com a API pelo endereço do próprio sistema.",
+    "Tratamento de falhas de rede e limite de espera nas solicitações.",
+    "Validação de usuários ativos e bloqueio de cadastro inicial repetido."
+  ];
+  useEffect(()=>{
+    if(status!=="authenticated")return;
+    try {
+      const token=localStorage.getItem("nexus_api_token")||"";
+      const payload=JSON.parse(atob(token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));
+      const key="compliance-release-seen:"+String(payload.sub||"unknown");
+      if(localStorage.getItem(key)!==releaseId)setShowRelease(true);
+    }catch{}
+  },[status]);
+  function dismissRelease(){
+    try {
+      const token=localStorage.getItem("nexus_api_token")||"";
+      const payload=JSON.parse(atob(token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));
+      localStorage.setItem("compliance-release-seen:"+String(payload.sub||"unknown"),releaseId);
+    }catch{}
+    setShowRelease(false);
+  }
   useEffect(()=>{
     let active=true;
     apiGet("/me").then(()=>{if(active)setStatus("authenticated")}).catch(()=>{
@@ -1673,7 +1698,18 @@ class NexusErrorBoundary extends React.Component { constructor(p){super(p);this.
       setError(String(err?.message||"Não foi possível entrar."));
     }finally{setBusy(false)}
   }
-  if(status==="authenticated")return <AppCore/>;
+  if(status==="authenticated")return <>
+    <AppCore/>
+    {showRelease&&<div role="dialog" aria-modal="true" aria-label="Atualização do Compliance One" style={{position:"fixed",inset:0,zIndex:99999,display:"grid",placeItems:"center",background:"#020817d9",padding:18}}>
+      <div style={{maxWidth:520,width:"100%",background:"#0b1d30",color:"#eaf4ff",padding:28,borderRadius:22,border:"1px solid #345c77",fontFamily:"system-ui"}}>
+        <small style={{letterSpacing:2,color:"#66d7ed"}}>NEXORA · NOVIDADES DA VERSÃO</small>
+        <h2>Compliance One {releaseId}</h2>
+        <p>Confira as melhorias desta versão:</p>
+        <ul style={{lineHeight:1.8}}>{releaseNotes.map((note,i)=><li key={i}>{note}</li>)}</ul>
+        <button onClick={dismissRelease} style={{padding:"12px 20px",border:0,borderRadius:10,background:"#6cdaed",color:"#051522",fontWeight:700}}>Entendi, continuar</button>
+      </div>
+    </div>}
+  </>;
   return <div style={{minHeight:"100vh",display:"grid",placeItems:"center",padding:24,background:"radial-gradient(circle at 50% 10%,#153e64,#050c18 70%)",color:"#eaf4ff",fontFamily:"system-ui"}}>
     <div style={{width:"100%",maxWidth:430,padding:32,border:"1px solid #33546d",borderRadius:24,background:"#0a1a2c",boxShadow:"0 24px 90px #0008"}}>
       <div style={{fontSize:12,letterSpacing:4,color:"#62d6ed"}}>NEXORA · ENTERPRISE</div>
