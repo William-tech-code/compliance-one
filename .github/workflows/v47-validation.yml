@@ -1,0 +1,28 @@
+name: Compliance One V47 validation
+on:
+  push:
+    branches:
+      - feature/compliance-one-enterprise-v47
+  pull_request:
+    branches:
+      - release/compliance-one-render-hardening
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run regression tests
+        run: npm test
+      - name: Compile frontend
+        run: npm run build

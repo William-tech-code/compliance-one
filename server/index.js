@@ -1,3 +1,6 @@
+import {createAiThrottle} from "./aiThrottle.js";
+import {verifyEvidenceFile,isEvidencePathInsideTenant} from "./evidenceIntegrity.js";
+import {resolveRegulatoryReview} from "./regulatoryReview.js";
 import {validateEvidenceReferences} from "./evidenceGuard.js";
 import {validateGovernanceMutation} from "./governanceGuard.js";
 import {validateCorrectiveActionMutation} from "./correctiveActionGuard.js";
@@ -255,16 +258,18 @@ app.get("/api/health", (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-const aiCalls=new Map();
+const aiThrottle=createAiThrottle();
 app.post("/api/ai/compliance-briefing",authenticate,requirePermission("record:read"),async(req,res)=>{
  const key=process.env.OPENAI_API_KEY;
  if(!key)return res.status(503).json({error:"AI_NOT_CONFIGURED"});
  const model=process.env.OPENAI_MODEL||"gpt-4.1-mini";
  let safe;
  try{safe=validateAiRequest(req.body)}catch(e){return res.status(400).json({error:e.message})}
- const last=aiCalls.get(req.user.sub)||0;
- if(Date.now()-last<15000)return res.status(429).json({error:"AI_RATE_LIMIT"});
- aiCalls.set(req.user.sub,Date.now());
+ const throttle=aiThrottle.check(req.user.sub);
+ if(!throttle.allowed){
+  res.setHeader("Retry-After",String(Math.ceil(throttle.retryAfter/1000)));
+  return res.status(429).json({error:"AI_RATE_LIMIT"});
+ }
  try{
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),15000);
@@ -295,6 +300,19 @@ CREATE TABLE IF NOT EXISTS regulatory_monitor_snapshots (
  error TEXT
 );
 `);
+db.exec(`
+CREATE TABLE IF NOT EXISTS regulatory_tenant_reviews (
+ company_id TEXT NOT NULL,
+ source_id TEXT NOT NULL,
+ digest TEXT NOT NULL,
+ decision TEXT NOT NULL,
+ notes TEXT NOT NULL,
+ reviewed_by TEXT NOT NULL,
+ reviewed_at TEXT NOT NULL,
+ PRIMARY KEY(company_id,source_id,digest)
+);
+CREATE INDEX IF NOT EXISTS idx_regulatory_tenant_reviews ON regulatory_tenant_reviews(company_id,source_id);
+`);
 let monitoring=false;
 async function runRegulatoryMonitor(){
  if(monitoring)return {error:"MONITOR_BUSY"};
@@ -321,7 +339,11 @@ async function runRegulatoryMonitor(){
 }
 app.get("/api/regulatory/monitor",authenticate,requirePermission("record:read"),(req,res)=>{
  const snapshots=db.prepare("SELECT source_id,digest,checked_at,changed_at,status,error FROM regulatory_monitor_snapshots").all();
- res.json({sources:MONITOR_SOURCES.map(x=>({...x,snapshot:snapshots.find(s=>s.source_id===x.id)||null})),legalValidityVerified:false});
+ const reviews=db.prepare("SELECT source_id,digest,decision,reviewed_at FROM regulatory_tenant_reviews WHERE company_id=?").all(req.user.companyId);
+ res.json({sources:MONITOR_SOURCES.map(x=>{
+  const snapshot=snapshots.find(s=>s.source_id===x.id)||null;
+  return {...x,snapshot:resolveRegulatoryReview(snapshot,reviews)};
+ }),legalValidityVerified:false});
 });
 app.post("/api/regulatory/monitor/run",authenticate,requirePermission("audit:read"),async(req,res)=>{
  const result=await runRegulatoryMonitor();
@@ -337,7 +359,9 @@ app.post("/api/regulatory/monitor/:sourceId/review",authenticate,requirePermissi
  if(!["REVIEWED","NEEDS_ACTION"].includes(decision)||notes.length<12||notes.length>2000)return res.status(400).json({error:"REVIEW_NOT_VALID"});
  const snapshot=db.prepare("SELECT * FROM regulatory_monitor_snapshots WHERE source_id=?").get(source.id);
  if(!snapshot)return res.status(404).json({error:"NO_SNAPSHOT"});
- db.prepare("UPDATE regulatory_monitor_snapshots SET status=? WHERE source_id=?").run(decision,source.id);
+ db.prepare(`INSERT INTO regulatory_tenant_reviews(company_id,source_id,digest,decision,notes,reviewed_by,reviewed_at)
+ VALUES(?,?,?,?,?,?,?) ON CONFLICT(company_id,source_id,digest) DO UPDATE SET decision=excluded.decision,notes=excluded.notes,reviewed_by=excluded.reviewed_by,reviewed_at=excluded.reviewed_at`)
+ .run(req.user.companyId,source.id,snapshot.digest,decision,notes,req.user.sub,now());
  audit(req,"REGULATORY_CHANGE_REVIEWED","regulatory",source.id,{decision,notes,sourceDigest:snapshot.digest});
  res.json({ok:true,sourceId:source.id,status:decision});
 });
@@ -385,6 +409,10 @@ app.get("/api/evidence/:id/download",authenticate,requirePermission("record:read
  const item=db.prepare("SELECT * FROM evidence_files WHERE id=? AND company_id=?").get(req.params.id,req.user.companyId);
  if(!item)return res.status(404).json({error:"NOT_FOUND"});
  if(!fs.existsSync(item.stored_path))return res.status(503).json({error:"EVIDENCE_MISSING"});
+ if(!isEvidencePathInsideTenant(item.stored_path,evidenceRoot,req.user.companyId)||!verifyEvidenceFile(item.stored_path,item.sha256,item.size)){
+  audit(req,"EVIDENCE_INTEGRITY_FAILED","evidence",item.id,{actionId:item.action_id});
+  return res.status(409).json({error:"EVIDENCE_INTEGRITY_FAILED"});
+ }
  res.setHeader("Content-Type","application/octet-stream");
  res.setHeader("Content-Disposition",'attachment; filename="evidence-'+item.id+'"');
  res.setHeader("X-Content-Type-Options","nosniff");
