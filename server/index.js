@@ -8,6 +8,7 @@ import {MONITOR_SOURCES,probeRegulation,compareRegulationSnapshot} from "./regul
 import {validateAiRequest,buildAiMessages} from "./aiSafety.js";
 import {configureWhistleblower} from "./whistleblower.js";
 import {createLoginProtection} from "./loginProtection.js";
+import {secureTokenMatches,validateAsaasEvent,sendResendEmail,hashResetToken,generateResetToken} from "./v50Integrations.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -86,6 +87,22 @@ CREATE TABLE IF NOT EXISTS record_versions (
 );
 CREATE INDEX IF NOT EXISTS idx_record_versions_company ON record_versions(company_id, record_id, version);
 
+CREATE TABLE IF NOT EXISTS v50_password_resets (
+  token_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  used_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_v50_password_resets_user ON v50_password_resets(user_id);
+CREATE TABLE IF NOT EXISTS v50_asaas_events (
+  id TEXT PRIMARY KEY,
+  event_type TEXT NOT NULL,
+  payment_id TEXT,
+  subscription_id TEXT,
+  received_at TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'PENDING_VERIFICATION'
+);
+
 `);
 
 app.use(helmet());
@@ -103,6 +120,62 @@ const id = () => crypto.randomUUID();
 
 const now = () => new Date().toISOString();
 const loginProtection = createLoginProtection();
+const resetAttempts=new Map();
+
+// Sandbox integration: no charging, no automatic license activation.
+app.post('/api/integrations/asaas/webhook',(req,res)=>{
+  if(!secureTokenMatches(req.get('asaas-access-token'),process.env.ASAAS_WEBHOOK_TOKEN)) return res.status(401).json({error:'WEBHOOK_UNAUTHORIZED'});
+  let event;
+  try{event=validateAsaasEvent(req.body)}catch{return res.status(400).json({error:'INVALID_WEBHOOK'})}
+  const result=db.prepare(`INSERT OR IGNORE INTO v50_asaas_events(id,event_type,payment_id,subscription_id,received_at)
+    VALUES(?,?,?,?,?)`).run(event.id,event.event,event.paymentId,event.subscriptionId,now());
+  // An event is evidence to reconcile, not proof of payment or an authorization to grant access.
+  return res.json({received:true,duplicate:result.changes===0});
+});
+
+app.post('/api/auth/forgot-password',async(req,res)=>{
+  const email=typeof req.body?.email==='string'?req.body.email.trim().toLowerCase():'';
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254) return res.status(400).json({error:'INVALID_EMAIL'});
+  if(!process.env.RESEND_API_KEY||!process.env.RESEND_FROM_EMAIL||!process.env.PUBLIC_APP_URL)
+    return res.status(503).json({error:'PASSWORD_RECOVERY_NOT_CONFIGURED'});
+  const key=crypto.createHash('sha256').update(req.ip+'|'+email).digest('hex');
+  const last=resetAttempts.get(key)||0;
+  if(Date.now()-last<60000)return res.json({ok:true});
+  resetAttempts.set(key,Date.now());
+  if(resetAttempts.size>10000)resetAttempts.clear();
+  const user=db.prepare('SELECT id,email FROM users WHERE email=? AND active=1').get(email);
+  if(user){
+    const token=generateResetToken();
+    db.prepare('DELETE FROM v50_password_resets WHERE user_id=?').run(user.id);
+    db.prepare('INSERT INTO v50_password_resets(token_hash,user_id,expires_at) VALUES(?,?,?)')
+      .run(hashResetToken(token),user.id,Date.now()+20*60*1000);
+    const base=process.env.PUBLIC_APP_URL.replace(/\/$/,'');
+    try{await sendResendEmail({apiKey:process.env.RESEND_API_KEY,from:process.env.RESEND_FROM_EMAIL,
+      to:user.email,subject:'NEXORA Compliance One · recuperação de senha',
+      text:'Para redefinir sua senha, abra este link em até 20 minutos:\n'+base+'/?reset_token='+encodeURIComponent(token)+'\nSe você não solicitou, ignore esta mensagem.'});}
+    catch{db.prepare('DELETE FROM v50_password_resets WHERE token_hash=?').run(hashResetToken(token));}
+  }
+  return res.json({ok:true});
+});
+
+app.post('/api/auth/reset-password',async(req,res)=>{
+  const {token,password}=req.body||{};
+  if(typeof token!=='string'||token.length>256||typeof password!=='string'||password.length<12||password.length>1024)
+    return res.status(400).json({error:'INVALID_RESET_REQUEST'});
+  const row=db.prepare('SELECT user_id FROM v50_password_resets WHERE token_hash=? AND used_at IS NULL AND expires_at>?')
+    .get(hashResetToken(token),Date.now());
+  if(!row)return res.status(400).json({error:'RESET_TOKEN_INVALID_OR_EXPIRED'});
+  const newHash=await bcrypt.hash(password,12);
+  const updated=db.transaction(()=>{
+    const consumed=db.prepare('UPDATE v50_password_resets SET used_at=? WHERE token_hash=? AND used_at IS NULL AND expires_at>?')
+      .run(Date.now(),hashResetToken(token),Date.now());
+    if(consumed.changes!==1)return false;
+    db.prepare('UPDATE users SET password_hash=? WHERE id=? AND active=1').run(newHash,row.user_id);
+    db.prepare('DELETE FROM v50_password_resets WHERE user_id=?').run(row.user_id);
+    return true;
+  })();
+  return updated?res.json({ok:true}):res.status(400).json({error:'RESET_TOKEN_INVALID_OR_EXPIRED'});
+});
 
 function createToken(user) {
   return jwt.sign(

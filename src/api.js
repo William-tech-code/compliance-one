@@ -44,6 +44,16 @@ export async function apiHealth() {
   return parseResponse(response);
 }
 
+export async function requestPasswordReset(email) {
+  const response=await request(`${API_URL}/auth/forgot-password`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+  return parseResponse(response);
+}
+
+export async function confirmPasswordReset(token,password) {
+  const response=await request(`${API_URL}/auth/reset-password`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,password})});
+  return parseResponse(response);
+}
+
 export async function bootstrapCompany(data) {
   const response = await request(`${API_URL}/bootstrap`, {
     method: "POST",

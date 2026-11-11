@@ -16,7 +16,7 @@ import "./NexoraExecutiveSystem.css";
 import "./NexoraResponsive.css";
 import "./NexoraMobilePolish.css";
 import "./DashboardPremium.css";
-import { apiGet, apiPost, apiPut, bootstrapCompany, login, logout as apiLogout } from "./api";
+import { apiGet, apiPost, apiPut, bootstrapCompany, login, logout as apiLogout, requestPasswordReset, confirmPasswordReset } from "./api";
 import NexusV125CommandCenter from "./NexusV125CommandCenter";
 import NexusAICommandCenter from "./NexusAICommandCenter";
 import NexusDecisionEngine from "./NexusDecisionEngine";
@@ -1721,7 +1721,7 @@ function Report({s,maturity,progress,print,setS,framework={selected:[]}}){
 }
 
 function AuthModal({close,onLogin,onBootstrap}){
-  const [mode,setMode]=useState("login");
+  const [mode,setMode]=useState(()=>new URLSearchParams(window.location.search).has('reset_token')?'reset':'login');
   const [email,setEmail]=useState("");
   const [password,setPassword]=useState("");
   const [companyName,setCompanyName]=useState("");
@@ -1730,6 +1730,22 @@ function AuthModal({close,onLogin,onBootstrap}){
   const [size,setSize]=useState("Pequena empresa");
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
+  const [success,setSuccess]=useState("");
+
+  async function recover(){
+    setBusy(true);setError("");setSuccess("");
+    try{
+      if(mode==='forgot'){
+        await requestPasswordReset(email);
+        setSuccess('Se a conta estiver ativa, enviaremos um link de recuperação para o e-mail informado.');
+      }else if(mode==='reset'){
+        await confirmPasswordReset(new URLSearchParams(window.location.search).get('reset_token'),password);
+        window.history.replaceState(null,'',window.location.pathname);
+        setMode('login');setPassword('');setSuccess('Senha atualizada. Entre com sua nova senha.');
+      }
+    }catch(e){setError(e.message||'Não foi possível concluir a recuperação.');}
+    finally{setBusy(false)}
+  }
 
   async function submit(e){
     e.preventDefault();
@@ -1755,8 +1771,15 @@ function AuthModal({close,onLogin,onBootstrap}){
     <div className="form">
       <div className="live-filters action-filter">
         <button type="button" className={mode==="login"?"active":""} onClick={()=>{setMode("login");setError("")}}>Entrar</button>
-        <button type="button" className={mode==="bootstrap"?"active":""} onClick={()=>{setMode("bootstrap");setError("")}}>Criar empresa</button>
+        {mode==='forgot'||mode==='reset'?<button type="button" className="active">Recuperação segura</button>:null}
       </div>
+      {mode==='forgot'||mode==='reset'?<>
+        {mode==='forgot'?<label>E-mail da conta<input type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email"/></label>:<label>Nova senha (mínimo de 12 caracteres)<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="new-password"/></label>}
+        {error&&<div className="secure-note" role="alert">⚠ {error}</div>}
+        {success&&<div className="secure-note" role="status">✓ {success}</div>}
+        <button className="primary" disabled={busy||(mode==='forgot'?!email.includes('@'):password.length<12)} onClick={recover}>{busy?'Aguarde…':mode==='forgot'?'Enviar link de recuperação':'Atualizar senha'}</button>
+        <button className="ghost" type="button" onClick={()=>{setMode('login');setError('');window.history.replaceState(null,'',window.location.pathname)}}>Voltar ao login</button>
+      </>:<>
       {mode==="bootstrap"&&<>
         <label>Empresa<input value={companyName} onChange={e=>setCompanyName(e.target.value)} placeholder="Razão social / nome"/></label>
         <label>Administrador<input value={adminName} onChange={e=>setAdminName(e.target.value)} placeholder="Nome do administrador"/></label>
@@ -1766,8 +1789,11 @@ function AuthModal({close,onLogin,onBootstrap}){
       <label>E-mail<input type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="username" placeholder="administrador@empresa.com"/></label>
       <label>Senha<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode==="login"?"current-password":"new-password"} placeholder="••••••••"/></label>
       {error&&<div className="secure-note">⚠ {error}</div>}
+      {success&&<div className="secure-note" role="status">✓ {success}</div>}
       <div className="form-note">🔐 A autenticação usa JWT no backend V124. O workspace permanece local quando a API não estiver conectada.</div>
       <button className="primary" disabled={busy} onClick={submit}>{busy?"Conectando...":mode==="login"?"Entrar com segurança":"Criar empresa e entrar"}</button>
+      {mode==='login'&&<button className="ghost" type="button" onClick={()=>{setMode('forgot');setError('');setSuccess('')}}>Esqueci minha senha</button>}
+      </>}
     </div>
   </Modal>
 }
