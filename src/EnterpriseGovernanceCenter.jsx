@@ -14,23 +14,23 @@ export default function EnterpriseGovernanceCenter({workspace,setWorkspace,revie
   setTitle("");setDescription("");setError("");notify("Registro criado");
  }catch(e){setError(e.message)}};
  const review=(item,decision)=>{try{if(!reviewer)throw Error("Sessão autenticada obrigatória");save(items.map(x=>x.id===item.id?reviewGovernanceItem(item,decision,reviewer):x));setError("");notify("Revisão registrada")}catch(e){setError(e.message)}};
- return <section style={{padding:18,margin:"14px 16px",border:"1px solid #526b81",borderRadius:14}}>
+ return <section className="nx-governance-panel">
   <h2>Governança Enterprise · V47</h2>
   <p>Cadastros internos de terceiros, políticas, treinamentos, auditorias e integridade. Nenhuma verificação externa é presumida.</p>
-  <p><strong>{summary.total}</strong> registros · {summary.open} em andamento · {summary.overdue} vencidos · {summary.approved} aprovados</p>
-  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+  <div className="nx-governance-stats"><span><strong>{summary.total}</strong> registros</span><span><strong>{summary.open}</strong> em andamento</span><span><strong>{summary.overdue}</strong> vencidos</span><span><strong>{summary.approved}</strong> aprovados</span></div>
+  <div className="nx-governance-form">
    <select aria-label="Tipo de registro" value={kind} onChange={e=>setKind(e.target.value)}>{categories.map(([id,label])=><option key={id} value={id} disabled={id==="DENUNCIA"}>{label}</option>)}</select>
    <input aria-label="Título" placeholder="Título" value={title} onChange={e=>setTitle(e.target.value)}/>
    <input aria-label="Responsável" placeholder="Responsável" value={owner} onChange={e=>setOwner(e.target.value)}/>
    <input aria-label="Prazo" type="date" value={dueAt} onChange={e=>setDueAt(e.target.value)}/>
    <input aria-label="Descrição" placeholder="Descrição" value={description} onChange={e=>setDescription(e.target.value)}/>
-   <button disabled={!reviewer} onClick={create}>Adicionar registro</button>
+   <button className="nx-primary-action" disabled={!reviewer} onClick={create}>+ Adicionar registro</button>
   </div>
-  {error&&<p role="alert">{error}</p>}
-  {items.map(item=><article key={item.id} style={{padding:12,borderBottom:"1px solid #526b81"}}>
+  {error&&<p className="nx-form-error" role="alert">{error}</p>}
+  {items.map(item=><article className="nx-governance-record" key={item.id}>
    <strong>{item.kind} · {item.title}</strong><p>{item.status} · Responsável: {item.owner||"Não atribuído"} · Prazo: {item.dueAt||"Não definido"}</p>
    <p>{item.description}</p>
-   {item.status!=="APROVADO"&&item.status!=="REPROVADO"&&<div style={{display:"flex",gap:8}}>
+   {item.status!=="APROVADO"&&item.status!=="REPROVADO"&&<div className="nx-governance-record-actions">
     <button disabled={!reviewer} onClick={()=>review(item,"EM ANÁLISE")}>Em análise</button>
     <button disabled={!reviewer||reviewer===item.createdBy} onClick={()=>review(item,"APROVADO")}>Aprovar</button>
     <button disabled={!reviewer} onClick={()=>review(item,"REPROVADO")}>Reprovar</button>
