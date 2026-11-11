@@ -1242,20 +1242,10 @@ function attach(files,owner,ownerId) {
     </aside>
 
     <main className="nexus-main">
-      {showReleaseNotice&&<section className="nexora-release-notice" role="status" aria-label="Novidades da versão">
-        <div className="nexora-release-icon" aria-hidden="true">✦</div>
-        <div className="nexora-release-copy">
-          <span className="nexora-release-eyebrow">✦ NEXORA UPDATE CENTER · NOVIDADES DISPONÍVEIS</span>
-          <strong>Mais proteção. Mais rastreabilidade. Uma experiência executiva.</strong>
-          <p>Conheça o histórico de apuração, as melhorias de acesso e o novo procedimento de backup verificado.</p>
-        </div>
-        <button className="nexora-release-explore" onClick={openRelease}>Ver atualização <span aria-hidden="true">↗</span></button>
-        <button className="nexora-release-close" aria-label="Dispensar aviso" onClick={acknowledgeRelease}>×</button>
-      </section>}
       <header><div><small>NEXUS / INTELLIGENCE CENTER / {page.toUpperCase()}</small><strong>{nav.find(x=>x[0]===page)?.[2]||"Command Center"}</strong></div>
         <div className="top-actions">
           <button aria-label="Ir ao Canal de Denúncias" onClick={()=>setPage("denuncias")}>⚑ Canal de Denúncias</button>
-          <button className="nexora-update-bell" aria-label="Abrir central de novidades e atualizações" onClick={openRelease}>♧ <span>Novidades</span><i aria-hidden="true"/></button>
+          <button className="nexora-update-bell" aria-label="Abrir central de novidades e atualizações" onClick={()=>document.getElementById("nexora-update-center")?.scrollIntoView({behavior:"smooth",block:"start"})}>♧ <span>Novidades</span><i aria-hidden="true"/></button>
           <button onClick={()=>setModal("company")}>✎ Editar empresa</button>
           <button onClick={exportBackup}>↓ Backup</button>
           {apiUser && <button onClick={openVersionHistory}>◷ Histórico de versões</button>}
@@ -1267,7 +1257,7 @@ function attach(files,owner,ownerId) {
           <span>{apiUser?(apiSyncing?"● Sincronizando":apiSyncError?"⚠ Falha ao salvar na API":"● API conectada"):"● Modo local"}</span>
         </div>
       </header>
-      {releaseOpen&&<NexoraUpdateExperience onClose={()=>setReleaseOpen(false)} onExplore={(destination)=>{setReleaseOpen(false);setPage(destination)}}/>}
+
 
       {versionHistory && <section role="dialog" aria-label="Histórico de versões" style={{padding:20,margin:16,border:"1px solid #526b81",borderRadius:12,background:"#10253c",color:"#fff"}}>
         <h3>Histórico do diagnóstico · versão atual {versionHistory.currentVersion}</h3>
@@ -1287,7 +1277,7 @@ function attach(files,owner,ownerId) {
         <p>{operationalActions.total} ações registradas no novo fluxo · {operationalActions.overdue} vencidas · {operationalActions.pendingValidation} aguardando validação independente · {operationalActions.completed} concluídas</p>
         <small>Indicadores das ações do fluxo de evidências; não incluem ações legadas até sua migração.</small>
       </section>}
-      <ReleaseCenter/>
+      <div id="nexora-update-center"><ReleaseCenter/></div>
       <div className="content">
         <div className="steps">{steps.map(([k,l],i)=><button key={k} className={`${page===k?"current ":""}${s.workflow[k]?"done":""}`} onClick={()=>go(k)}><b>{s.workflow[k]?"✓":i+1}</b><span>{l}</span></button>)}</div>
 
