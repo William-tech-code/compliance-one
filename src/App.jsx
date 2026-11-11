@@ -248,11 +248,11 @@ function ProductionCenter({s,setS,notify}){
     setUserName(""); notify("Usuário criado. A etapa de autenticação real será conectada ao backend.");
   }
   return <div className="page">
-    <div className="prod-hero"><div><small>NEXUS · PRODUCTION READINESS</small><h1>Centro de Operação Empresarial</h1><p>Preparação para múltiplas empresas, usuários, permissões, auditoria e operação comercial.</p></div><div className="prod-badge">CORE<br/><b>READY</b></div></div>
-    <div className="prod-tabs">{[["empresa","Empresas"],["usuarios","Usuários"],["auditoria","Auditoria"],["arquitetura","Arquitetura"]].map(x=><button className={tab===x[0]?"active":""} onClick={()=>setTab(x[0])} key={x[0]}>{x[1]}</button>)}</div>
-    {tab==="empresa"&&<Panel title="Portfólio de empresas" sub="Estrutura preparada para separar dados por organização.">
+    <div className="nexora-company-hero"><div><small>GESTÃO EMPRESARIAL</small><h1>Empresas e ambientes</h1><p>Organize seu portfólio e acompanhe a governança de cada organização em uma única experiência.</p></div><div className="nexora-company-number"><strong>{companies.length}</strong><span>{companies.length===1?"empresa cadastrada":"empresas cadastradas"}</span></div></div>
+    <div className="prod-tabs">{[["empresa","Portfólio"],["usuarios","Equipe e perfis"],["auditoria","Trilha de auditoria"],["arquitetura","Preparação técnica"]].map(x=><button className={tab===x[0]?"active":""} onClick={()=>setTab(x[0])} key={x[0]}>{x[1]}</button>)}</div>
+    {tab==="empresa"&&<Panel title="Portfólio de empresas" sub="Centralize a organização dos cadastros. Cada ambiente exige autenticação e validação de permissões.">
       <div className="prod-form"><input value={companyName} onChange={e=>setCompanyName(e.target.value)} placeholder="Nome da nova empresa"/><button className="primary" onClick={addCompany}>+ Adicionar empresa</button></div>
-      <div className="prod-list">{companies.map(c=><div key={c.id}><div><b>{c.name}</b><span>{c.status} · {c.id}</span></div><strong>ABRIR →</strong></div>)}</div>
+      <div className="prod-list">{companies.map(c=><div key={c.id}><div><b>{c.name}</b><span>{c.status} · {c.id}</span></div><span className="nexora-company-state">Cadastro no portfólio</span></div>)}</div>
     </Panel>}
     {tab==="usuarios"&&<Panel title="Usuários e perfis" sub="Perfis separados para reduzir exposição indevida.">
       <div className="prod-form"><input value={userName} onChange={e=>setUserName(e.target.value)} placeholder="Nome do usuário"/><select value={userRole} onChange={e=>setUserRole(e.target.value)}>{NEXUS_ROLES.map(r=><option key={r[0]}>{r[0]}</option>)}</select><button className="primary" onClick={addUser}>+ Criar acesso</button></div>
@@ -761,6 +761,7 @@ function AppCore() {
   const [busy,setBusy] = useState(null);
   const [toast,setToast] = useState("");
   const [modal,setModal] = useState(null);
+  const [settingsOpen,setSettingsOpen] = useState(false);
   const [detail,setDetail] = useState(null);
   const [apiUser,setApiUser] = useState(null);
   const [apiLoading,setApiLoading] = useState(true);
@@ -1224,7 +1225,7 @@ function attach(files,owner,ownerId) {
     notify("Workspace local reiniciado.");
   }
 
-  const nav=[["dashboard","⌂","Dashboard"],["denuncias","⚑","Canal de Denúncias"],["global","◎","Global Compliance"],["empresa","▣","Empresa"],...steps.slice(1).map(([k,l],i)=>[k,["◈","☑","△","✓","📎","§","▤"][i],l]),["documentos","▤","Documentos Inteligentes"],["standards","◌","Atualizações & Frameworks"],["producao","⌘","Operação Empresarial"],["matriz-filosofica","◉","Matriz Filosófica"]];
+  const nav=[["dashboard","⌂","Visão Geral"],["producao","▣","Empresas"],["global","◎","Compliance Global"],["empresa","▤","Perfil da Empresa"],...steps.slice(1).map(([k,l],i)=>[k,["◈","☑","△","✓","📎","§","▤"][i],l]),["documentos","▤","Documentos Inteligentes"],["standards","◌","Atualizações & Frameworks"],["denuncias","⚑","Canal de Denúncias"],["matriz-filosofica","◉","Matriz Filosófica"]];
 
   const enterExperience=()=>{ try { sessionStorage.setItem("nexus-entry-v119","1"); } catch {} setS(prev=>({...prev,firstAccess:false,history:[...(prev.history||[]),{id:uid("LOG"),text:"Experiência inteligente iniciada.",date:now()}]})); setPage("empresa"); setShowEntry(false); };
   const enterDemo=()=>{ try { sessionStorage.setItem("nexus-entry-v119","1"); } catch {} const demo={name:"Empresa Demo NEXUS",document:"TESTE-0001",segment:"Supermercados / Varejo",size:"Média empresa",city:"São Paulo / SP",mode:"SaaS + Assessoria",responsible:"Usuário Teste",director:"Diretor Demo"}; setS(prev=>({...prev,firstAccess:false,company:demo,workflow:{...prev.workflow,empresa:true},history:[...(prev.history||[]),{id:uid("LOG"),text:"Ambiente DEMO iniciado.",date:now()}]})); setPage("diagnostico"); setShowEntry(false); };
@@ -1239,24 +1240,34 @@ function attach(files,owner,ownerId) {
       <div className="brand"><b>N</b><div><strong>NEXORA</strong><small>COMPLIANCE ONE · ENTERPRISE</small></div></div>
       <div className="company"><small>EMPRESA ATIVA</small><strong>{s.company.name||"Novo projeto"}</strong><span>{s.company.segment||"Aguardando cadastro"}</span></div>
       <nav>{nav.map(([k,ic,l])=><button key={k} className={page===k?"active":""} onClick={()=>go(k)}><i>{ic}</i><span>{l}</span>{s.workflow[k]&&<em>✓</em>}</button>)}</nav>
-      <div className="engine">● NEXUS INTELLIGENCE ENGINE <b>ONLINE</b></div>
+      <div className="nexora-sidebar-footer"><span>◈ Ambiente seguro</span><small>Compliance One · Enterprise</small></div>
     </aside>
 
     <main className="nexus-main">
-      <header><div><small>NEXUS / INTELLIGENCE CENTER / {page.toUpperCase()}</small><strong>{nav.find(x=>x[0]===page)?.[2]||"Command Center"}</strong></div>
-        <div className="top-actions">
-          <button aria-label="Ir ao Canal de Denúncias" onClick={()=>setPage("denuncias")}>⚑ Canal de Denúncias</button>
-          <button className="nexora-update-bell" aria-label="Abrir central de novidades e atualizações" onClick={()=>document.getElementById("nexora-update-center")?.scrollIntoView({behavior:"smooth",block:"start"})}>♧ <span>Novidades</span><i aria-hidden="true"/></button>
-          <button onClick={()=>setModal("company")}>✎ Editar empresa</button>
-          {apiUser&&<button onClick={()=>setModal("mfa")}>◇ Segurança MFA</button>}
-          <button onClick={exportBackup}>↓ Backup</button>
-          {apiUser && <button onClick={openVersionHistory}>◷ Histórico de versões</button>}
-          <label className="top-file">↑ Restaurar<input hidden type="file" accept="application/json,.json" onChange={e=>restoreBackup(e.target.files?.[0])}/></label>
-          <button onClick={resetWorkspace}>↺ Reiniciar</button>
-          {apiUser
-            ? <button onClick={disconnectApi}>● API V124 · {apiUser.role}</button>
-            : <button onClick={()=>setModal("auth")}>⇄ Conectar API</button>}
-          <span>{apiUser?(apiSyncing?"● Sincronizando":apiSyncError?"⚠ Falha ao salvar na API":"● API conectada"):"● Modo local"}</span>
+      <header className="nexora-clean-header">
+        <div className="nexora-header-title"><small>COMPLIANCE ONE <span>/</span> {s.company.name||"Ambiente empresarial"}</small><strong>{nav.find(x=>x[0]===page)?.[2]||"Visão Geral"}</strong></div>
+        <div className="nexora-header-actions">
+          <button className="nexora-header-icon" title="Novidades e atualizações" aria-label="Novidades e atualizações" onClick={()=>document.getElementById("nexora-update-center")?.scrollIntoView({behavior:"smooth",block:"start"})}>♧ <span className="nexora-header-dot"/></button>
+          <div className="nexora-settings">
+            <button className="nexora-profile-trigger" aria-expanded={settingsOpen} aria-controls="nexora-settings-menu" onClick={()=>setSettingsOpen(v=>!v)}>
+              <span className="nexora-profile-avatar">{String(apiUser?.name||apiUser?.email||"A").slice(0,1).toUpperCase()}</span>
+              <span className="nexora-profile-name">{apiUser?.name||"Administrador"}<small>{apiUser?.role||"Usuário"}</small></span>
+              <span aria-hidden="true">⌄</span>
+            </button>
+            {settingsOpen&&<div id="nexora-settings-menu" className="nexora-settings-menu">
+              <div className="nexora-settings-label">CONTA E EMPRESA</div>
+              <button onClick={()=>{setModal("company");setSettingsOpen(false)}}>✎ Editar empresa</button>
+              <button onClick={()=>{setModal("mfa");setSettingsOpen(false)}}>◇ Segurança MFA</button>
+              <div className="nexora-settings-label">DADOS E SISTEMA</div>
+              <button onClick={()=>{exportBackup();setSettingsOpen(false)}}>↓ Exportar backup</button>
+              <label className="nexora-settings-upload">↑ Restaurar backup<input hidden type="file" accept="application/json,.json" onChange={e=>{restoreBackup(e.target.files?.[0]);setSettingsOpen(false);e.target.value=""}}/></label>
+              <button onClick={()=>{openVersionHistory();setSettingsOpen(false)}}>◷ Histórico de versões</button>
+              <button onClick={()=>{resetWorkspace();setSettingsOpen(false)}}>↺ Reiniciar espaço local</button>
+              <div className="nexora-settings-label">SESSÃO</div>
+              <div className="nexora-settings-status">{apiSyncing?"Sincronizando alterações":apiSyncError?"Erro de sincronização":"Conectado com segurança"}</div>
+              <button className="nexora-signout" onClick={()=>{setSettingsOpen(false);disconnectApi()}}>↪ Sair da conta</button>
+            </div>}
+          </div>
         </div>
       </header>
 
@@ -1281,7 +1292,7 @@ function attach(files,owner,ownerId) {
       </section>}
       <div id="nexora-update-center"><ReleaseCenter/></div>
       <div className="content">
-        <div className="steps">{steps.map(([k,l],i)=><button key={k} className={`${page===k?"current ":""}${s.workflow[k]?"done":""}`} onClick={()=>go(k)}><b>{s.workflow[k]?"✓":i+1}</b><span>{l}</span></button>)}</div>
+        {page!=="dashboard"&&page!=="producao"&&<div className="steps">{steps.map(([k,l],i)=><button key={k} className={`${page===k?"current ":""}${s.workflow[k]?"done":""}`} onClick={()=>go(k)}><b>{s.workflow[k]?"✓":i+1}</b><span>{l}</span></button>)}</div>}
 
         {page==="dashboard" && <Dashboard s={s} maturity={maturity} progress={progress} stats={stats} go={go}/>}
         {page==="global" && <GlobalCompliance s={s} setS={setS} analysis={frameworkAnalysis()} notify={notify}/>}{page==="empresa" && <CompanyPage s={s} open={()=>setModal("company")} />}
