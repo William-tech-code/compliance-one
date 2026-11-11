@@ -1247,7 +1247,7 @@ function attach(files,owner,ownerId) {
       <header className="nexora-clean-header">
         <div className="nexora-header-title"><small>COMPLIANCE ONE <span>/</span> {s.company.name||"Ambiente empresarial"}</small><strong>{nav.find(x=>x[0]===page)?.[2]||"Visão Geral"}</strong></div>
         <div className="nexora-header-actions">
-          <button className="nexora-header-icon" title="Novidades e atualizações" aria-label="Novidades e atualizações" onClick={()=>document.getElementById("nexora-update-center")?.scrollIntoView({behavior:"smooth",block:"start"})}>♧ <span className="nexora-header-dot"/></button>
+          <button className="nexora-header-icon" title="Novidades e atualizações" aria-label="Novidades e atualizações" onClick={()=>window.dispatchEvent(new Event("nexora:open-updates"))}>♧ <span className="nexora-header-dot"/></button>
           <div className="nexora-settings">
             <button className="nexora-profile-trigger" aria-expanded={settingsOpen} aria-controls="nexora-settings-menu" onClick={()=>setSettingsOpen(v=>!v)}>
               <span className="nexora-profile-avatar">{String(apiUser?.name||apiUser?.email||"A").slice(0,1).toUpperCase()}</span>
@@ -1290,7 +1290,7 @@ function attach(files,owner,ownerId) {
         <p>{operationalActions.total} ações registradas no novo fluxo · {operationalActions.overdue} vencidas · {operationalActions.pendingValidation} aguardando validação independente · {operationalActions.completed} concluídas</p>
         <small>Indicadores das ações do fluxo de evidências; não incluem ações legadas até sua migração.</small>
       </section>}
-      <div id="nexora-update-center"><ReleaseCenter/></div>
+      <ReleaseCenter/>
       <div className="content">
         {page!=="dashboard"&&page!=="producao"&&<div className="steps">{steps.map(([k,l],i)=><button key={k} className={`${page===k?"current ":""}${s.workflow[k]?"done":""}`} onClick={()=>go(k)}><b>{s.workflow[k]?"✓":i+1}</b><span>{l}</span></button>)}</div>}
 
