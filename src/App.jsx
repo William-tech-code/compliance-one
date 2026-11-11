@@ -1224,7 +1224,11 @@ function attach(files,owner,ownerId) {
 
   const enterExperience=()=>{ try { sessionStorage.setItem("nexus-entry-v119","1"); } catch {} setS(prev=>({...prev,firstAccess:false,history:[...(prev.history||[]),{id:uid("LOG"),text:"Experiência inteligente iniciada.",date:now()}]})); setPage("empresa"); setShowEntry(false); };
   const enterDemo=()=>{ try { sessionStorage.setItem("nexus-entry-v119","1"); } catch {} const demo={name:"Empresa Demo NEXUS",document:"TESTE-0001",segment:"Supermercados / Varejo",size:"Média empresa",city:"São Paulo / SP",mode:"SaaS + Assessoria",responsible:"Usuário Teste",director:"Diretor Demo"}; setS(prev=>({...prev,firstAccess:false,company:demo,workflow:{...prev.workflow,empresa:true},history:[...(prev.history||[]),{id:uid("LOG"),text:"Ambiente DEMO iniciado.",date:now()}]})); setPage("diagnostico"); setShowEntry(false); };
-  if (showEntry) return <FirstAccess onStart={enterExperience} onDemo={enterDemo}/>;
+  // Production is private by default: no local/demo workspace without a verified API session.
+  if(apiLoading) return <div className="app" style={{display:"grid",placeItems:"center",minHeight:"100vh",padding:24}}><div role="status">Validando acesso seguro ao Compliance One...</div></div>;
+  if(!apiUser) return <div className="app" style={{display:"grid",placeItems:"center",minHeight:"100vh",padding:24}}><div style={{width:"min(100%,520px)"}}><h1>NEXORA · COMPLIANCE ONE</h1><p>Ambiente privado. Entre com sua conta autorizada para acessar a plataforma.</p><AuthModal close={()=>{}} onLogin={handleApiLogin} onBootstrap={handleApiBootstrap}/></div></div>;
+  // FirstAccess/demo is intentionally not reachable in authenticated production.
+
 
   return <div className="app">
     <aside>
