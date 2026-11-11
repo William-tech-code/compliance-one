@@ -11,6 +11,7 @@ import {createLoginProtection} from "./loginProtection.js";
 import {secureTokenMatches,validateAsaasEvent,sendResendEmail,hashResetToken,generateResetToken,sessionVersionValid} from "./v50Integrations.js";
 import {generateTotpSecret,encryptTotpSecret,decryptTotpSecret,verifyTotp} from './v50Mfa.js';
 import {canReadUserDirectory,canCreateUser,validateNewUser} from "./v51UserAccess.js";
+import {resolveMfaEncryptionKey} from "./v51MfaKey.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -133,10 +134,7 @@ const loginProtection = createLoginProtection();
 const resetAttempts=new Map();
 const mfaConfirmAttempts=new Map();
 function mfaEncryptionKey(){
- const raw=process.env.MFA_ENCRYPTION_KEY;
- if(!raw)return null;
- const key=Buffer.from(raw,'base64');
- return key.length===32?key:null;
+ return resolveMfaEncryptionKey(process.env.MFA_ENCRYPTION_KEY);
 }
 
 // Sandbox integration: no charging, no automatic license activation.
