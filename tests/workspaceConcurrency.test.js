@@ -12,7 +12,7 @@ test("two sessions cannot overwrite a newer workspace version", {timeout:30000},
  const port=20000+Math.floor(Math.random()*20000);
  const base="http://127.0.0.1:"+port+"/api";
  const secret="integration-test-bootstrap-secret";
- const child=spawn(process.execPath,["server/index.js"],{env:{...process.env,PORT:String(port),DATABASE_PATH:join(dir,EVIDENCE_STORAGE_PATH:join(dir,"evidence"),"test.sqlite"),JWT_SECRET:"test-only-secret-with-at-least-32-characters",BOOTSTRAP_SECRET:secret,NODE_ENV:"test"},stdio:["ignore","pipe","pipe"]});
+ const child=spawn(process.execPath,["server/index.js"],{env:{...process.env,PORT:String(port),DATABASE_PATH:join(dir,"test.sqlite"),EVIDENCE_STORAGE_PATH:join(dir,"evidence"),JWT_SECRET:"test-only-secret-with-at-least-32-characters",BOOTSTRAP_SECRET:secret,NODE_ENV:"test"},stdio:["ignore","pipe","pipe"]});
  let logs="";
  child.stderr.on("data",chunk=>{logs+=chunk.toString()});
  const call=async(path,method="GET",body,token,version,extra={})=>{
