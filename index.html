@@ -44,24 +44,12 @@
 <div class="nx-caption">SEGURANÇA · INTELIGÊNCIA · GOVERNANÇA</div>
 <div class="nx-track" aria-hidden="true"><span></span></div>
 <div class="nx-status">PREPARANDO SUA EXPERIÊNCIA EXECUTIVA</div>
-<button class="nx-retry" type="button" onclick="location.reload()">Tentar novamente</button>
+<button class="nx-retry" type="button">Tentar novamente</button>
 <div class="nx-footer">POWERED BY NEXORA AI</div>
 </div>
 </div>
 <div id="root"></div>
-<script>
-(function(){
-var intro=document.getElementById('nexora-intro'),root=document.getElementById('root');
-var done=false;
-function finish(){if(done)return;done=true;observer.disconnect();intro.classList.add('nexora-exit');setTimeout(function(){intro.remove()},750)}
-var observer=new MutationObserver(function(){if(root.childElementCount>0){requestAnimationFrame(function(){requestAnimationFrame(finish)})}});
-observer.observe(root,{childList:true});
-if(root.childElementCount>0)finish();
-// Never let the branding overlay block the login or the application indefinitely.
-setTimeout(finish,3500);
-
-})();
-</script>
+<script defer src="/intro.js"></script>
 <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>
