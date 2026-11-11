@@ -41,3 +41,17 @@ export async function sendResendEmail({apiKey,from,to,subject,text,fetcher=fetch
 
 export function hashResetToken(raw) {return crypto.createHash('sha256').update(raw).digest('hex')}
 export function generateResetToken(){return crypto.randomBytes(32).toString('base64url')}
+export function sessionVersionValid(claims,current) {
+  return !!current && current.active===1 && (claims?.sessionVersion||0)===current.session_version;
+}
+
+// Call only after retrieving the payment independently from Asaas Sandbox API.
+export function evaluateSandboxEntitlement({payment,companyId,subscriptionId,customerId,minimumValue}={}) {
+  if(!payment || !companyId || !subscriptionId || !customerId || !Number.isFinite(minimumValue) || minimumValue<=0)
+    return {eligible:false,reason:'INCOMPLETE_MAPPING'};
+  if(payment.subscription!==subscriptionId || payment.customer!==customerId || payment.externalReference!==companyId)
+    return {eligible:false,reason:'MISMATCHED_TENANT_OR_SUBSCRIPTION'};
+  if(!['CONFIRMED','RECEIVED'].includes(payment.status) || !Number.isFinite(payment.value) || payment.value<minimumValue)
+    return {eligible:false,reason:'PAYMENT_NOT_VERIFIED'};
+  return {eligible:true,reason:'SANDBOX_PAYMENT_VERIFIED'};
+}

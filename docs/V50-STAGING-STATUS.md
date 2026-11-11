@@ -10,6 +10,8 @@ Status: **EM DESENVOLVIMENTO / NÃO HOMOLOGADO / NÃO PUBLICAR EM PRODUÇÃO**.
 - Adaptador de envio Resend, sem enviar e-mails quando não configurado.
 - Recuperação de senha com token aleatório, hash no banco, validade de 20 minutos, consumo único e limitação básica de solicitação.
 - Interface de solicitação de recuperação e escolha de nova senha.
+- Sessões antigas invalidadas pelo contador de versão após troca de senha.
+- Política de elegibilidade da assinatura no Sandbox exige conciliação de empresa, cliente Asaas, assinatura, valor e status consultado de forma independente.
 
 ## Configuração exigida para homologação (não inserir valores no Git)
 

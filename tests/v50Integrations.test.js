@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {secureTokenMatches,validateAsaasEvent,createAsaasSandboxClient,sendResendEmail,hashResetToken,generateResetToken} from '../server/v50Integrations.js';
+import {secureTokenMatches,validateAsaasEvent,createAsaasSandboxClient,sendResendEmail,hashResetToken,generateResetToken,sessionVersionValid,evaluateSandboxEntitlement} from '../server/v50Integrations.js';
 
 test('Asaas webhook validates auth token without accepting short or missing secrets',()=>{
  const token='a'.repeat(40);assert.equal(secureTokenMatches(token,token),true);
@@ -25,4 +25,18 @@ test('Resend adapter refuses missing credentials and sends text-only message',as
 });
 test('reset tokens are unpredictable and only hashes should be stored',()=>{
  const a=generateResetToken(),b=generateResetToken();assert.notEqual(a,b);assert.equal(hashResetToken(a).length,64);assert.notEqual(hashResetToken(a),a);
+});
+test('password reset revokes all JWTs issued before session version increases',()=>{
+ assert.equal(sessionVersionValid({}, {active:1,session_version:0}),true);
+ assert.equal(sessionVersionValid({sessionVersion:0},{active:1,session_version:1}),false);
+ assert.equal(sessionVersionValid({sessionVersion:1},{active:1,session_version:1}),true);
+ assert.equal(sessionVersionValid({sessionVersion:1},{active:0,session_version:1}),false);
+});
+test('Asaas sandbox entitlement requires verified ownership, subscription, status and amount',()=>{
+ const payment={subscription:'sub1',customer:'cus1',externalReference:'company1',status:'RECEIVED',value:100};
+ const params={payment,companyId:'company1',subscriptionId:'sub1',customerId:'cus1',minimumValue:100};
+ assert.equal(evaluateSandboxEntitlement(params).eligible,true);
+ assert.equal(evaluateSandboxEntitlement({...params,companyId:'company2'}).eligible,false);
+ assert.equal(evaluateSandboxEntitlement({...params,payment:{...payment,status:'PENDING'}}).eligible,false);
+ assert.equal(evaluateSandboxEntitlement({...params,payment:{...payment,value:50}}).eligible,false);
 });

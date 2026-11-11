@@ -8,7 +8,7 @@ import {MONITOR_SOURCES,probeRegulation,compareRegulationSnapshot} from "./regul
 import {validateAiRequest,buildAiMessages} from "./aiSafety.js";
 import {configureWhistleblower} from "./whistleblower.js";
 import {createLoginProtection} from "./loginProtection.js";
-import {secureTokenMatches,validateAsaasEvent,sendResendEmail,hashResetToken,generateResetToken} from "./v50Integrations.js";
+import {secureTokenMatches,validateAsaasEvent,sendResendEmail,hashResetToken,generateResetToken,sessionVersionValid} from "./v50Integrations.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -104,6 +104,9 @@ CREATE TABLE IF NOT EXISTS v50_asaas_events (
 );
 
 `);
+if(!db.pragma('table_info(users)').some(column=>column.name==='session_version')){
+  db.exec('ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0');
+}
 
 app.use(helmet());
 
@@ -170,7 +173,7 @@ app.post('/api/auth/reset-password',async(req,res)=>{
     const consumed=db.prepare('UPDATE v50_password_resets SET used_at=? WHERE token_hash=? AND used_at IS NULL AND expires_at>?')
       .run(Date.now(),hashResetToken(token),Date.now());
     if(consumed.changes!==1)return false;
-    db.prepare('UPDATE users SET password_hash=? WHERE id=? AND active=1').run(newHash,row.user_id);
+    db.prepare('UPDATE users SET password_hash=?,session_version=session_version+1 WHERE id=? AND active=1').run(newHash,row.user_id);
     db.prepare('DELETE FROM v50_password_resets WHERE user_id=?').run(row.user_id);
     return true;
   })();
@@ -185,6 +188,7 @@ function createToken(user) {
       role: user.role,
       name: user.name,
       email: user.email,
+      sessionVersion: user.session_version||0,
     },
     JWT_SECRET,
     {
@@ -206,8 +210,8 @@ function authenticate(req, res, next) {
 
   try {
     const claims = jwt.verify(token, JWT_SECRET);
-    const current = db.prepare("SELECT id, company_id, name, email, role, active FROM users WHERE id = ? AND company_id = ?").get(claims.sub, claims.companyId);
-    if (!current || current.active !== 1) {
+    const current = db.prepare("SELECT id, company_id, name, email, role, active, session_version FROM users WHERE id = ? AND company_id = ?").get(claims.sub, claims.companyId);
+    if (!sessionVersionValid(claims,current)) {
       return res.status(401).json({ error: "SESSION_REVOKED" });
     }
     req.user = {
