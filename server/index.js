@@ -9,10 +9,12 @@ import crypto from "node:crypto";
 const app = express();
 
 const PORT = Number(process.env.PORT || 8787);
-const JWT_SECRET =
-  process.env.JWT_SECRET || "NEXUS_DEV_SECRET_CHANGE_BEFORE_PRODUCTION";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET.length < 32) {
+  throw new Error("JWT_SECRET must be configured with at least 32 characters.");
+}
 
-const db = new Database("nexus.sqlite");
+const db = new Database(process.env.DATABASE_PATH || "nexus.sqlite");
 
 db.pragma("journal_mode = WAL");
 
@@ -101,7 +103,10 @@ function authenticate(req, res, next) {
   const token = authorization.substring(7);
 
   try {
-    req.user = jwt.verify(token, JWT_SECRET);
+    const claims = jwt.verify(token, JWT_SECRET);
+    const currentUser = db.prepare("SELECT id, company_id, role, active FROM users WHERE id = ? AND company_id = ?").get(claims.sub, claims.companyId);
+    if (!currentUser || currentUser.active !== 1) return res.status(401).json({ error: "SESSION_REVOKED" });
+    req.user = { ...claims, companyId: currentUser.company_id, role: currentUser.role };
     next();
   } catch {
     return res.status(401).json({
@@ -214,6 +219,9 @@ app.get("/api/health", (req, res) => {
 */
 
 app.post("/api/bootstrap", async (req, res) => {
+  if (db.prepare("SELECT COUNT(*) AS count FROM users").get().count > 0) {
+    return res.status(403).json({ error: "BOOTSTRAP_DISABLED" });
+  }
   const {
     companyName,
     segment = "",
