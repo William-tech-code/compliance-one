@@ -14,7 +14,7 @@ const freePort=()=>new Promise(resolve=>{const s=net.createServer();s.listen(0,"
 test("public ethics intake stays encrypted and only designated team can view cases",{timeout:25000},async()=>{
  const tmp=mkdtempSync(path.join(tmpdir(),"nexora-ethics-"));
  const port=await freePort(),base=`http://127.0.0.1:${port}`;
- const child=spawn(process.execPath,["server/index.js"],{cwd:process.cwd(),env:{...process.env,PORT:String(port),DATABASE_PATH:path.join(tmp,"ethics.sqlite"),EVIDENCE_STORAGE_PATH:path.join(tmp,"evidence"),JWT_SECRET:crypto.randomBytes(32).toString("hex"),BOOTSTRAP_SECRET:"test-only-secret",WHISTLEBLOWER_ENCRYPTION_KEY:crypto.randomBytes(32).toString("hex")},stdio:"ignore"});
+ const child=spawn(process.execPath,["server/index.js"],{cwd:process.cwd(),env:{...process.env,PORT:String(port),DATABASE_PATH:path.join(tmp,"ethics.sqlite"),EVIDENCE_STORAGE_PATH:path.join(tmp,"evidence"),NODE_ENV:"test",JWT_SECRET:crypto.randomBytes(32).toString("hex"),BOOTSTRAP_SECRET:"test-only-secret",WHISTLEBLOWER_ENCRYPTION_KEY:crypto.randomBytes(32).toString("hex")},stdio:"ignore"});
  async function call(url,method="GET",body,token){const response=await fetch(`${base}${url}`,{method,headers:{...(body?{"Content-Type":"application/json"}:{}),...(token?{Authorization:`Bearer ${token}`}:{})},...(body?{body:JSON.stringify(body)}:{})});return {status:response.status,data:await response.json()}}
  try{
   let ready=false;
