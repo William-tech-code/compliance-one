@@ -14,6 +14,7 @@ import "./NexoraRelease.css";
 import ReleaseCenter from "./ReleaseCenter";
 import "./NexoraExecutiveSystem.css";
 import "./NexoraResponsive.css";
+import "./NexoraMobilePolish.css";
 import { apiGet, apiPost, apiPut, bootstrapCompany, login, logout as apiLogout } from "./api";
 import NexusV125CommandCenter from "./NexusV125CommandCenter";
 import NexusAICommandCenter from "./NexusAICommandCenter";

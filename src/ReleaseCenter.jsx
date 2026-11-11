@@ -30,14 +30,17 @@ export default function ReleaseCenter(){
   try{localStorage.setItem(key(CURRENT_RELEASE),"yes")}catch{}
   setRead(true);setOpen(false);
  };
- return <div style={{margin:"12px 16px"}}>
-  {visible&&<section role="region" aria-label="Central de atualizações" style={{padding:16,border:"1px solid #526b81",borderRadius:12}}>
-   <strong>{newer?"Nova versão disponível: "+latest:"NEXORA Update Center · Versão "+CURRENT_RELEASE}</strong>
-   <p>{newer?"Uma nova versão foi publicada. Recarregue para receber a interface atualizada.":"Consulte o que mudou, o que foi corrigido e os benefícios de cada versão. "+(read?"Histórico disponível para consulta.":"Novidades ainda não lidas.")}</p>
-   <button onClick={()=>newer?window.location.reload():setOpen(true)}>{newer?"Atualizar agora":"Ver alterações detalhadas"}</button>
-   {!newer&&!read&&<button style={{marginLeft:12}} onClick={markRead}>Marcar como lido</button>}
-  </section>}
-  <button style={{marginTop:8}} onClick={()=>setOpen(true)}>Histórico detalhado de atualizações</button>
+ return <div className="nexora-mobile-release">
+  <section className="nexora-mobile-release-card" role="region" aria-label="Central de atualizações">
+   <div className="nexora-mobile-release-heading"><span className="nexora-mobile-release-kicker">NEXORA UPDATE CENTER</span><span className="nexora-mobile-release-version">V{newer?latest:CURRENT_RELEASE}</span></div>
+   <strong>{newer?"Atualização disponível":read?"Histórico de melhorias":"Veja o que mudou"}</strong>
+   <p>{newer?"Uma nova versão foi publicada. Atualize a página para recebê-la.":read?"Consulte as alterações entregues em cada versão.":"Confira as melhorias, correções e benefícios desta versão."}</p>
+   <div className="nexora-mobile-release-actions">
+    <button className="nexora-mobile-release-primary" onClick={()=>newer?window.location.reload():setOpen(true)}>{newer?"Atualizar agora":"Ver novidades"}</button>
+    {!newer&&!read&&<button className="nexora-mobile-release-secondary" onClick={markRead}>Marcar como lido</button>}
+    <button className="nexora-mobile-release-link" onClick={()=>setOpen(true)}>Histórico de versões</button>
+   </div>
+  </section>
   {open&&<section role="dialog" aria-modal="true" aria-label="Histórico de atualizações" style={{position:"fixed",inset:0,zIndex:99999,background:"rgba(4,12,22,.96)",overflowY:"auto",padding:"min(5vw,40px)",color:"#f2f6fc"}}>
    <div style={{maxWidth:840,margin:"0 auto"}}>
     <button onClick={()=>setOpen(false)} style={{float:"right"}} aria-label="Fechar atualizações">Fechar ×</button>
