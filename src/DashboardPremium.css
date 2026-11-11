@@ -30,3 +30,13 @@
 @media(max-width:1050px){.nx-governance-form{grid-template-columns:repeat(2,minmax(0,1fr))}.nx-governance-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.nx-executive-panel,.nx-governance-panel{margin:10px 0;padding:17px;border-radius:16px}.nx-governance-form{grid-template-columns:1fr}.nx-governance-form input[aria-label="Descrição"],.nx-governance-form .nx-primary-action{grid-column:auto}.nx-executive-panel button,.nx-governance-panel button{width:100%}.nx-executive-panel select{max-width:100%}.nx-governance-stats{gap:8px}.nx-governance-record-actions{flex-direction:column}}
 @media(prefers-reduced-motion:reduce){.nx-executive-panel button,.nx-governance-panel button{transition:none!important}}
+/* Public whistleblower links are long tokens; never clip the usable value. */
+.nx-ethics-page .secure-note.nx-ethics-access{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;padding:16px 18px;background:linear-gradient(120deg,#122b44,#172342);border:1px solid #315b77;border-radius:13px;color:#d6e9f8;font-size:13px}
+.nx-ethics-access a{color:#8fe8f5;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere;word-break:break-word;flex:1 1 280px;min-width:0;line-height:1.6}
+.nx-ethics-access button{flex:0 0 auto;min-height:42px;border:1px solid #3d7588;border-radius:10px;padding:10px 17px;background:#154154;color:#e5fcff;font-size:13px;font-weight:700}
+.nx-ethics-access button:hover{background:#1b5b70;border-color:#72dce8}
+.nx-ethics-identity{min-width:0;display:grid;gap:5px;overflow-wrap:anywhere}
+.nx-ethics-identity b{font-size:14px;color:#f2f9ff}
+.nx-ethics-identity span{font-size:12px;color:#90ead3}
+.nx-ethics-page .panel{min-width:0}
+@media(max-width:650px){.nx-ethics-page .secure-note.nx-ethics-access{align-items:stretch;flex-direction:column}.nx-ethics-access a{flex:auto}.nx-ethics-access button{width:100%}}
