@@ -370,7 +370,7 @@ app.get("/api/health", (req, res) => {
   res.json({
     ok: true,
     service: "NEXUS API",
-    version: "V124",
+    version: process.env.APP_RELEASE_VERSION || "V50-STAGING",
     time: now(),
   });
 });
