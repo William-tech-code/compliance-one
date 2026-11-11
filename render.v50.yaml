@@ -1,0 +1,32 @@
+# Isolated V50 staging only. Never reference production disks or secrets.
+services:
+  - type: web
+    name: compliance-one-v50-staging
+    runtime: node
+    repo: https://github.com/William-tech-code/compliance-one
+    branch: feature/compliance-v50-staging
+    region: ohio
+    plan: 0.5c-512mb
+    autoDeployTrigger: 'off'
+    buildCommand: npm ci && npm run build
+    startCommand: sh -c 'mountpoint -q /var/data || { echo "Persistent staging disk missing"; exit 1; }; exec node server/index.js'
+    healthCheckPath: /api/health
+    disk:
+      name: compliance-v50-staging-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_PATH
+        value: /var/data/compliance-v50-staging.sqlite
+      - key: EVIDENCE_STORAGE_PATH
+        value: /var/data/evidence
+      - key: REGULATORY_MONITOR_ENABLED
+        value: 'false'
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MFA_ENCRYPTION_KEY
+        generateValue: true
+      - key: BOOTSTRAP_SECRET
+        generateValue: true
