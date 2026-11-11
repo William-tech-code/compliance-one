@@ -61,3 +61,15 @@ O arquivo `package.json` ainda informa versão `45.0.0`; o manifesto visual info
 **Passo F — Único go-live:** janela controlada, backup, deploy, smoke, observabilidade e rollback testado.
 
 Nenhum passo isolado autoriza afirmar que o lote inteiro está pronto.
+
+## 4. Registro de execução — 11/11/2026
+
+- [x] Criada matriz do lote único com critérios de aceite e regras de publicação.
+- [x] Criada política `server/v51UserAccess.js` de autorização de usuários: criação restrita a Administrador.
+- [x] Integrada política nas rotas `GET/POST /api/users` e validação de entrada.
+- [x] Criado conjunto de testes unitários `tests/v51UserAccess.test.js`.
+- [ ] Executar testes da alteração no ambiente de homologação; ainda não foram executados nesta etapa.
+- [ ] Revisar provisionamento multiempresa real; atual `ProductionCenter` permanece demonstrativo.
+- [ ] Implementar e validar todos os demais itens da matriz.
+
+**Checkpoint:** código preparado na branch de staging; **nenhum deploy da V51 foi acionado** e produção não foi alterada.
