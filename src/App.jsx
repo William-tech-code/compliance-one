@@ -1646,4 +1646,46 @@ return <Modal title={x.protocol} close={close}><div className="detail"><h2>{x.ca
 
 function Modal({title,close,children}){return <div className="modal-bg" onMouseDown={close}><div className="modal" onMouseDown={e=>e.stopPropagation()}><header><h2>{title}</h2><button onClick={close}>×</button></header>{children}</div></div>}
 
-class NexusErrorBoundary extends React.Component { constructor(p){super(p);this.state={error:null}} static getDerivedStateFromError(error){return {error}} render(){if(this.state.error)return <div style={{minHeight:'100vh',background:'#06101d',color:'#eaf3ff',padding:'40px',fontFamily:'system-ui'}}><h1>NEXUS encontrou um erro de execução</h1><p style={{color:'#8fa6bf'}}>A aplicação não ficou em branco silenciosamente. O erro abaixo identifica o ponto que precisa ser corrigido.</p><pre style={{whiteSpace:'pre-wrap',background:'#0b192a',padding:'18px',borderRadius:'12px',color:'#ff9e9e'}}>{String(this.state.error?.stack||this.state.error)}</pre><button onClick={()=>location.reload()} style={{padding:'12px 18px',borderRadius:'8px',border:0}}>Recarregar</button></div>;return this.props.children}} function App(){return <NexusErrorBoundary><AppCore/></NexusErrorBoundary>} export default App;
+class NexusErrorBoundary extends React.Component { constructor(p){super(p);this.state={error:null}} static getDerivedStateFromError(error){return {error}} render(){if(this.state.error)return <div style={{minHeight:'100vh',background:'#06101d',color:'#eaf3ff',padding:'40px',fontFamily:'system-ui'}}><h1>NEXUS encontrou um erro de execução</h1><p style={{color:'#8fa6bf'}}>A aplicação não ficou em branco silenciosamente. O erro abaixo identifica o ponto que precisa ser corrigido.</p><pre style={{whiteSpace:'pre-wrap',background:'#0b192a',padding:'18px',borderRadius:'12px',color:'#ff9e9e'}}>{String(this.state.error?.stack||this.state.error)}</pre><button onClick={()=>location.reload()} style={{padding:'12px 18px',borderRadius:'8px',border:0}}>Recarregar</button></div>;return this.props.children}} function SecureEntryGate(){
+  const [status,setStatus]=useState("checking");
+  const [email,setEmail]=useState("");
+  const [password,setPassword]=useState("");
+  const [error,setError]=useState("");
+  const [busy,setBusy]=useState(false);
+  useEffect(()=>{
+    let active=true;
+    apiGet("/me").then(()=>{if(active)setStatus("authenticated")}).catch(()=>{
+      apiLogout();
+      if(active)setStatus("login");
+    });
+    return ()=>{active=false};
+  },[]);
+  async function submit(event){
+    event.preventDefault();
+    if(busy)return;
+    setBusy(true);setError("");
+    try{
+      await login(email,password);
+      await apiGet("/me");
+      setStatus("authenticated");
+    }catch(err){
+      apiLogout();
+      setError(String(err?.message||"Não foi possível entrar."));
+    }finally{setBusy(false)}
+  }
+  if(status==="authenticated")return <AppCore/>;
+  return <div style={{minHeight:"100vh",display:"grid",placeItems:"center",padding:24,background:"radial-gradient(circle at 50% 10%,#153e64,#050c18 70%)",color:"#eaf4ff",fontFamily:"system-ui"}}>
+    <div style={{width:"100%",maxWidth:430,padding:32,border:"1px solid #33546d",borderRadius:24,background:"#0a1a2c",boxShadow:"0 24px 90px #0008"}}>
+      <div style={{fontSize:12,letterSpacing:4,color:"#62d6ed"}}>NEXORA · ENTERPRISE</div>
+      <h1 style={{marginBottom:6}}>Compliance One</h1>
+      <p style={{color:"#a7bbd0",marginBottom:26}}>Ambiente executivo protegido</p>
+      {status==="checking"?<p role="status">Validando sua sessão...</p>:<form onSubmit={submit} style={{display:"grid",gap:16}}>
+        <label style={{display:"grid",gap:7}}>E-mail<input required type="email" autoComplete="username" value={email} onChange={e=>setEmail(e.target.value)} style={{padding:13,borderRadius:10}}/></label>
+        <label style={{display:"grid",gap:7}}>Senha<input required type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} style={{padding:13,borderRadius:10}}/></label>
+        {error&&<p role="alert" style={{color:"#ffb7b7"}}>{error}</p>}
+        <button disabled={busy} type="submit" style={{padding:15,borderRadius:12,background:"#57c8e8",color:"#041421",fontWeight:700}}>{busy?"Autenticando...":"Entrar com segurança"}</button>
+      </form>}
+    </div>
+  </div>;
+}
+function App(){return <NexusErrorBoundary><SecureEntryGate/></NexusErrorBoundary>} export default App;
