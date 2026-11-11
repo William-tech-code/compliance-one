@@ -57,7 +57,9 @@ function finish(){if(done)return;done=true;observer.disconnect();intro.classList
 var observer=new MutationObserver(function(){if(root.childElementCount>0){requestAnimationFrame(function(){requestAnimationFrame(finish)})}});
 observer.observe(root,{childList:true});
 if(root.childElementCount>0)finish();
-setTimeout(function(){if(!done){var label=intro.querySelector('.nx-status');if(label)label.textContent='A INICIALIZAÇÃO ESTÁ DEMORANDO MAIS QUE O ESPERADO';var retry=intro.querySelector('.nx-retry');if(retry)retry.style.display='block'}},12000);
+// Never let the branding overlay block the login or the application indefinitely.
+setTimeout(finish,3500);
+
 })();
 </script>
 <script type="module" src="/src/main.jsx"></script>
