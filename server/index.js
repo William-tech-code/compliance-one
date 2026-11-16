@@ -1,6 +1,7 @@
 import {createAiThrottle} from "./aiThrottle.js";
 import {configureAssessmentPreview} from "./v51AssessmentPreview.js";
 import {configureAssessmentCycles} from "./v51AssessmentCyclesApi.js";
+import {configureCorrectiveActions} from "./v51CorrectiveActionsApi.js";
 import {verifyEvidenceFile,isEvidencePathInsideTenant} from "./evidenceIntegrity.js";
 import {resolveRegulatoryReview} from "./regulatoryReview.js";
 import {validateEvidenceReferences} from "./evidenceGuard.js";
@@ -362,6 +363,7 @@ function audit(req, action, entity = "", entityId = "", metadata = {}) {
 configureWhistleblower({app,db,authenticate,audit});
 configureAssessmentPreview({app,db,authenticate,requirePermission});
 configureAssessmentCycles({app,db,authenticate,requirePermission,audit});
+configureCorrectiveActions({app,db,authenticate,requirePermission,audit});
 
 /*
 |--------------------------------------------------------------------------
