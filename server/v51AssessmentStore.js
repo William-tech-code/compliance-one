@@ -77,3 +77,10 @@ export function getAssessmentCycle(db, { companyId, cycleId }) {
     WHERE company_id=? AND cycle_id=? ORDER BY control_id`).all(companyId, cycleId);
   return { ...cycle, answers };
 }
+
+
+export function listAssessmentCycles(db,{companyId,limit=50}){
+  if(!companyId||!Number.isSafeInteger(limit)||limit<1||limit>100)
+    throw new Error('INVALID_CYCLE_LIST');
+  return db.prepare('SELECT c.id,c.title,c.status,c.created_at,c.closed_at,COUNT(a.control_id) AS answer_count FROM v51_assessment_cycles c LEFT JOIN v51_assessment_answers a ON a.company_id=c.company_id AND a.cycle_id=c.id WHERE c.company_id=? GROUP BY c.id,c.title,c.status,c.created_at,c.closed_at ORDER BY c.created_at DESC,c.id DESC LIMIT ?').all(companyId,limit);
+}
