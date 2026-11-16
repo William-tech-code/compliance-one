@@ -29,7 +29,7 @@ export function createCorrectiveAction(db, input) {
       typeof controlId !== 'string' || !/^[a-zA-Z0-9_:.-]{1,120}$/.test(controlId) ||
       typeof description !== 'string' || !description.trim() || description.length > 2000 ||
       typeof owner !== 'string' || !owner.trim() || owner.length > 160 ||
-      typeof dueDate !== 'string' || !/^\\d{4}-\\d{2}-\\d{2}$/.test(dueDate) ||
+      typeof dueDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dueDate) ||
       Number.isNaN(Date.parse(dueDate + 'T00:00:00Z')) ||
       new Date(dueDate + 'T00:00:00Z').toISOString().slice(0,10) !== dueDate)
     throw new Error('INVALID_CORRECTIVE_ACTION');
