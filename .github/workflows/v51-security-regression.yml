@@ -1,0 +1,24 @@
+name: V51 Security Regression
+on:
+  pull_request:
+    branches:
+      - feature/compliance-v50-staging
+  push:
+    branches:
+      - feature/compliance-v51-security-audit-20261116
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
