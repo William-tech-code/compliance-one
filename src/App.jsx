@@ -1,5 +1,6 @@
 import EnterpriseGovernanceCenter from "./EnterpriseGovernanceCenter";
 import ExecutiveIntelligenceCenter from "./ExecutiveIntelligenceCenter";
+import V51ExecutiveDashboard from "./V51ExecutiveDashboard";
 import ComplianceIntelligencePanel from "./ComplianceIntelligencePanel";
 import CorrectiveActionsWorkspace from "./CorrectiveActionsWorkspace";
 import {complianceOperationsSummary} from "./complianceOperations";
@@ -1467,6 +1468,7 @@ function NexusPremiumOverview({s,maturity,progress,stats,go}){
 function Dashboard({s,maturity,progress,stats,go}){
   const hasCompany=!!s.company.name;
   return <div className="command-center">
+    <V51ExecutiveDashboard/>
     <div className="command-hero">
       <div className="hero-glow glow-a"></div><div className="hero-glow glow-b"></div>
       <div className="hero-copy">
