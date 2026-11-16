@@ -30,7 +30,7 @@ test("real HTTP API isolates two fictitious tenants, users, records and audit", 
   const url="http://127.0.0.1:"+port;
   const child=spawn(process.execPath,["server/index.js"],{
     cwd:process.cwd(),stdio:["ignore","pipe","pipe"],
-    env:{...process.env,NODE_ENV:"test",PORT:String(port),DATABASE_PATH:dbPath,JWT_SECRET:"isolated-test-jwt-secret-minimum-32-characters",BOOTSTRAP_SECRET:"isolated-test-bootstrap-secret",ASAAS_API_KEY:"",RESEND_API_KEY:""}
+    env:{...process.env,NODE_ENV:"test",PORT:String(port),DATABASE_PATH:dbPath,EVIDENCE_STORAGE_PATH:path.join(dir,"evidence"),JWT_SECRET:"isolated-test-jwt-secret-minimum-32-characters",BOOTSTRAP_SECRET:"isolated-test-bootstrap-secret",ASAAS_API_KEY:"",RESEND_API_KEY:""}
   });
   let childError="";
   child.stderr.on("data",chunk=>{childError+=String(chunk).slice(-4000);});
