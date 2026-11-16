@@ -1,0 +1,23 @@
+name: V51 staging HTTP smoke
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/v51-staging-http-smoke.yml"
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check health and unauthenticated access
+        shell: bash
+        env:
+          BASE: https://compliance-one-v50-staging-uami.onrender.com
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 3 --max-time 30 "$BASE/api/health" >/dev/null
+          status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 30 -H 'Authorization:' "$BASE/api/me")"
+          test "$status" = "401" || { echo "Expected unauthenticated /api/me 401, got $status"; exit 1; }
+          status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 30 -H 'Authorization:' "$BASE/api/records/workspace")"
+          test "$status" = "401" || { echo "Expected unauthenticated /api/records/workspace 401, got $status"; exit 1; }
+          echo "Staging health OK and protected endpoints deny anonymous access"
