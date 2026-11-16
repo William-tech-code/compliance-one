@@ -22,7 +22,9 @@ async function withServer({ role = 'Auditoria', rows = [] } = {}, fn) {
   const requirePermission = permission => (req, res, next) =>
     role === 'Equipe de Apuração' ? res.status(403).json({ error: 'FORBIDDEN' }) : next();
   configureAssessmentPreview({ app, db, authenticate, requirePermission });
-  const server = app.listen(0, '127.0.0.1');
+  const server = await new Promise(resolve => {
+    const listener = app.listen(0, '127.0.0.1', () => resolve(listener));
+  });
   try {
     const url = 'http://127.0.0.1:' + server.address().port + '/api/v51/assessment/preview';
     await fn(url);
