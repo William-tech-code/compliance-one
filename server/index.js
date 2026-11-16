@@ -3,6 +3,7 @@ import {configureAssessmentPreview} from "./v51AssessmentPreview.js";
 import {configureAssessmentCycles} from "./v51AssessmentCyclesApi.js";
 import {configureCorrectiveActions} from "./v51CorrectiveActionsApi.js";
 import {configureAssessmentEvidenceReviews} from "./v51AssessmentEvidenceReviewsApi.js";
+import {configureV51ExecutiveMetrics} from "./v51ExecutiveMetricsApi.js";
 import {verifyEvidenceFile,isEvidencePathInsideTenant} from "./evidenceIntegrity.js";
 import {resolveRegulatoryReview} from "./regulatoryReview.js";
 import {validateEvidenceReferences} from "./evidenceGuard.js";
@@ -512,6 +513,7 @@ const evidenceRoot=process.env.EVIDENCE_STORAGE_PATH||(production?"/var/data/evi
 if(production&&(!path.isAbsolute(evidenceRoot)||!evidenceRoot.startsWith("/var/data/")))throw Error("EVIDENCE_STORAGE_PATH must be under /var/data");
 fs.mkdirSync(evidenceRoot,{recursive:true,mode:0o700});
 configureAssessmentEvidenceReviews({app,db,authenticate,requirePermission,audit,evidenceRoot});
+configureV51ExecutiveMetrics({app,db,authenticate,requirePermission,evidenceRoot});
 app.post("/api/evidence/upload",authenticate,requirePermission("record:write"),(req,res)=>{
  const {actionId,name,mime,base64}=req.body||{};
  if(typeof actionId!=="string"||!actionId.trim()||typeof name!=="string"||!name.trim()||name.length>200||typeof base64!=="string"||base64.length>7_000_000)return res.status(400).json({error:"INVALID_UPLOAD"});
