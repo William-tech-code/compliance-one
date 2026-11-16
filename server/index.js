@@ -564,9 +564,9 @@ app.post("/api/bootstrap", async (req, res) => {
     });
   }
 
-  if (password.length < 10) {
+  if (typeof password !== "string" || password.length < 12) {
     return res.status(400).json({
-      error: "PASSWORD_MIN_10",
+      error: "PASSWORD_MIN_12",
     });
   }
 
