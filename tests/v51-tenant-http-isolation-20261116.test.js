@@ -15,13 +15,13 @@ async function freePort(){
   await new Promise(resolve=>server.close(resolve));
   return port;
 }
-async function ready(url,child){
+async function ready(url,child,getError){
   for(let i=0;i<100;i++){
-    if(child.exitCode!==null)throw new Error("Test API terminated early");
+    if(child.exitCode!==null)throw new Error("Test API terminated early: "+getError());
     try{const r=await fetch(url+"/api/health",{signal:AbortSignal.timeout(500)});if(r.ok)return;}catch{}
     await new Promise(resolve=>setTimeout(resolve,100));
   }
-  throw new Error("Test API health timeout");
+  throw new Error("Test API health timeout: "+getError());
 }
 test("real HTTP API isolates two fictitious tenants, users, records and audit", {timeout:30000}, async()=>{
   const dir=mkdtempSync(path.join(tmpdir(),"compliance-tenant-"));
@@ -29,11 +29,14 @@ test("real HTTP API isolates two fictitious tenants, users, records and audit", 
   const port=await freePort();
   const url="http://127.0.0.1:"+port;
   const child=spawn(process.execPath,["server/index.js"],{
-    cwd:process.cwd(),stdio:"ignore",
+    cwd:process.cwd(),stdio:["ignore","pipe","pipe"],
     env:{...process.env,NODE_ENV:"test",PORT:String(port),DATABASE_PATH:dbPath,JWT_SECRET:"isolated-test-jwt-secret-minimum-32-characters",BOOTSTRAP_SECRET:"isolated-test-bootstrap-secret",ASAAS_API_KEY:"",RESEND_API_KEY:""}
   });
+  let childError="";
+  child.stderr.on("data",chunk=>{childError+=String(chunk).slice(-4000);});
+  child.stdout.on("data",chunk=>{childError+=String(chunk).slice(-1000);});
   try{
-    await ready(url,child);
+    await ready(url,child,()=>childError);
     const db=new Database(dbPath);
     try{
       const now=new Date().toISOString();
