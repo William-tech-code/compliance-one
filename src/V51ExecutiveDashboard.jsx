@@ -1,4 +1,4 @@
-import React,{useState} from 'react';
+import React,{useEffect,useState} from 'react';
 import {apiGet} from './api';
 import './V51ExecutiveDashboard.css';
 
@@ -7,6 +7,20 @@ const percent=(n)=>Number.isFinite(n)?n.toFixed(1).replace(/\.0$/,'')+'%':'—';
 
 export default function V51ExecutiveDashboard(){
   const [cycleId,setCycleId]=useState('');
+  const [cycles,setCycles]=useState([]);
+  const [cyclesLoading,setCyclesLoading]=useState(true);
+  const [cyclesError,setCyclesError]=useState('');
+  useEffect(()=>{
+    let active=true;
+    apiGet('/v51/assessment/cycles').then(data=>{
+      if(!active)return;
+      const items=Array.isArray(data?.cycles)?data.cycles:[];
+      setCycles(items);
+      setCycleId(current=>current||items[0]?.id||'');
+    }).catch(err=>{if(active)setCyclesError(err?.message||'Não foi possível listar os ciclos.');})
+      .finally(()=>{if(active)setCyclesLoading(false);});
+    return ()=>{active=false;};
+  },[]);
   const [report,setReport]=useState(null);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
@@ -38,14 +52,17 @@ export default function V51ExecutiveDashboard(){
     </header>
     <form className="v51-lookup" onSubmit={load}>
       <label htmlFor="v51-cycle-id">Identificador do ciclo V51</label>
-      <input id="v51-cycle-id" value={cycleId} onChange={e=>setCycleId(e.target.value)}
-        placeholder="Cole o ID do ciclo de avaliação" maxLength={120}/>
-      <button type="submit" disabled={loading||!cycleId.trim()}>
+      {cycles.length>0?<select id="v51-cycle-id" value={cycleId} onChange={e=>{setCycleId(e.target.value);setReport(null);setError('');}}>
+        {cycles.map(c=><option key={c.id} value={c.id}>{c.title} · {c.status==='closed'?'Encerrado':'Em andamento'} · {c.answer_count} respostas</option>)}
+      </select>:<input id="v51-cycle-id" value={cycleId} onChange={e=>setCycleId(e.target.value)}
+        placeholder={cyclesLoading?'Carregando ciclos…':'ID do ciclo de avaliação'} maxLength={120} disabled={cyclesLoading}/>}
+      {cyclesError&&<small role="alert">{cyclesError}</small>}
+      <button type="submit" disabled={loading||cyclesLoading||!cycleId.trim()}>
         {loading?'Consultando…':'Carregar indicadores'}
       </button>
     </form>
     {error&&<p role="alert" className="v51-error">{error}</p>}
-    {!report&&!error&&<p className="v51-empty">Informe um ciclo existente para visualizar os indicadores. Nenhum dado fictício é exibido.</p>}
+    {!report&&!error&&<p className="v51-empty">Selecione um ciclo existente para visualizar os indicadores. Se ainda não houver ciclos, crie uma avaliação V51. Nenhum dado fictício é exibido.</p>}
     {report&&<>
       <div className="v51-report-title"><strong>{report.cycle?.title}</strong>
         <span>{report.cycle?.status==='closed'?'Ciclo encerrado':'Ciclo em andamento'}</span></div>
