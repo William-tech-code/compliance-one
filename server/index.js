@@ -2,6 +2,7 @@ import {createAiThrottle} from "./aiThrottle.js";
 import {configureAssessmentPreview} from "./v51AssessmentPreview.js";
 import {configureAssessmentCycles} from "./v51AssessmentCyclesApi.js";
 import {configureCorrectiveActions} from "./v51CorrectiveActionsApi.js";
+import {configureAssessmentEvidenceReviews} from "./v51AssessmentEvidenceReviewsApi.js";
 import {verifyEvidenceFile,isEvidencePathInsideTenant} from "./evidenceIntegrity.js";
 import {resolveRegulatoryReview} from "./regulatoryReview.js";
 import {validateEvidenceReferences} from "./evidenceGuard.js";
@@ -510,6 +511,7 @@ CREATE INDEX IF NOT EXISTS idx_evidence_files_tenant ON evidence_files(company_i
 const evidenceRoot=process.env.EVIDENCE_STORAGE_PATH||(production?"/var/data/evidence":path.resolve("evidence-dev"));
 if(production&&(!path.isAbsolute(evidenceRoot)||!evidenceRoot.startsWith("/var/data/")))throw Error("EVIDENCE_STORAGE_PATH must be under /var/data");
 fs.mkdirSync(evidenceRoot,{recursive:true,mode:0o700});
+configureAssessmentEvidenceReviews({app,db,authenticate,requirePermission,audit,evidenceRoot});
 app.post("/api/evidence/upload",authenticate,requirePermission("record:write"),(req,res)=>{
  const {actionId,name,mime,base64}=req.body||{};
  if(typeof actionId!=="string"||!actionId.trim()||typeof name!=="string"||!name.trim()||name.length>200||typeof base64!=="string"||base64.length>7_000_000)return res.status(400).json({error:"INVALID_UPLOAD"});
