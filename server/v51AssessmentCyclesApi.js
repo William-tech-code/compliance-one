@@ -1,6 +1,6 @@
 import {
   initializeAssessmentStore, createAssessmentCycle, saveAssessmentAnswer,
-  closeAssessmentCycle, getAssessmentCycle
+  closeAssessmentCycle, getAssessmentCycle, listAssessmentCycles
 } from './v51AssessmentStore.js';
 import { summarizeAssessment } from './v51AssessmentEngine.js';
 
@@ -25,6 +25,10 @@ export function configureAssessmentCycles({ app, db, authenticate, requirePermis
       audit(req, 'V51_ASSESSMENT_CYCLE_CREATED', 'assessment_cycle', cycle.id);
       return res.status(201).json(cycle);
     } catch (error) { return sendError(res, error); }
+  });
+
+  app.get('/api/v51/assessment/cycles', ...read, (req,res)=>{
+    return res.json({cycles:listAssessmentCycles(db,{companyId:req.user.companyId})});
   });
 
   app.get('/api/v51/assessment/cycles/:cycleId', ...read, (req, res) => {
