@@ -30,6 +30,7 @@ test('operator backup gate verifies a consistent snapshot and refuses overwrite'
   const second=run();
   assert.notEqual(second.status,0);
   assert.match(second.stderr,/DESTINATION_ALREADY_EXISTS/);
+  assert.equal(fs.existsSync(target),true,'existing snapshot must never be deleted');
   const untouched=new Database(target,{readonly:true});
   assert.equal(untouched.prepare('SELECT COUNT(*) AS n FROM items').get().n,1);
   untouched.close();
