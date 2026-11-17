@@ -1,5 +1,11 @@
-export const CURRENT_RELEASE = "49.1.0";
+export const CURRENT_RELEASE = "50.0.0";
 export const RELEASE_HISTORY = [
+ {version:"50.0.0",title:"NEXORA Enterprise · experiência executiva",date:"2026-11-11",changes:[
+  {module:"Navegação executiva",before:"Ações administrativas dividiam espaço com a navegação principal.",after:"Cabeçalho simplificado e menus organizados por atividade.",benefit:"Encontre o que importa com menos distrações e mais clareza."},
+  {module:"Central de segurança e configurações",before:"Controles técnicos ficavam espalhados no topo da aplicação.",after:"Backup, restauração, MFA e histórico foram agrupados no menu do perfil.",benefit:"Controles importantes permanecem acessíveis, sem poluir a tela de trabalho."},
+  {module:"Empresas e ambientes",before:"A área de empresas destacava mensagens técnicas de preparação.",after:"Um painel dedicado reúne portfólio, equipe e auditoria.",benefit:"Uma gestão empresarial mais elegante e focada na operação."},
+  {module:"Novidades inteligentes",before:"Um card fixo e um histórico técnico ocupavam o dashboard.",after:"Uma apresentação de atualização aparece uma vez por versão e pode ser reaberta pelo cabeçalho.",benefit:"Você conhece as evoluções sem ter um anúncio permanente no sistema."}
+ ]},
  {version:"49.1.0",title:"Abertura executiva NEXORA",date:"2026-11-11",changes:[
   {module:"Identidade e inicialização",before:"A página aguardava a montagem da interface sem uma apresentação institucional própria.",after:"Uma abertura executiva em azul profundo e dourado apresenta NEXORA Compliance One e é retirada após a montagem da interface React.",benefit:"Oferece uma primeira impressão premium sem introduzir um tempo de espera fixo."},
   {module:"Compatibilidade",before:"Não havia experiência de abertura específica para telas pequenas e orientação reduzida de movimento.",after:"A abertura adapta tipografia e dimensões a telas compactas e respeita a preferência por movimento reduzido.",benefit:"Melhora a apresentação em celulares, tablets e computadores."},

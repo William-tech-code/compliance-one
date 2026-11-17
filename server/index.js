@@ -1,4 +1,9 @@
 import {createAiThrottle} from "./aiThrottle.js";
+import {configureAssessmentPreview} from "./v51AssessmentPreview.js";
+import {configureAssessmentCycles} from "./v51AssessmentCyclesApi.js";
+import {configureCorrectiveActions} from "./v51CorrectiveActionsApi.js";
+import {configureAssessmentEvidenceReviews} from "./v51AssessmentEvidenceReviewsApi.js";
+import {configureV51ExecutiveMetrics} from "./v51ExecutiveMetricsApi.js";
 import {verifyEvidenceFile,isEvidencePathInsideTenant} from "./evidenceIntegrity.js";
 import {resolveRegulatoryReview} from "./regulatoryReview.js";
 import {validateEvidenceReferences} from "./evidenceGuard.js";
@@ -8,6 +13,11 @@ import {MONITOR_SOURCES,probeRegulation,compareRegulationSnapshot} from "./regul
 import {validateAiRequest,buildAiMessages} from "./aiSafety.js";
 import {configureWhistleblower} from "./whistleblower.js";
 import {createLoginProtection} from "./loginProtection.js";
+import {secureTokenMatches,validateAsaasEvent,sendResendEmail,hashResetToken,generateResetToken,sessionVersionValid} from "./v50Integrations.js";
+import {generateTotpSecret,encryptTotpSecret,decryptTotpSecret,verifyTotp} from './v50Mfa.js';
+import {canReadUserDirectory,canCreateUser,validateNewUser} from "./v51UserAccess.js";
+import {resolveMfaEncryptionKey} from "./v51MfaKey.js";
+import {configureV51Organization} from "./v51OrganizationApi.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -86,7 +96,31 @@ CREATE TABLE IF NOT EXISTS record_versions (
 );
 CREATE INDEX IF NOT EXISTS idx_record_versions_company ON record_versions(company_id, record_id, version);
 
+CREATE TABLE IF NOT EXISTS v50_password_resets (
+  token_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  used_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_v50_password_resets_user ON v50_password_resets(user_id);
+CREATE TABLE IF NOT EXISTS v50_asaas_events (
+  id TEXT PRIMARY KEY,
+  event_type TEXT NOT NULL,
+  payment_id TEXT,
+  subscription_id TEXT,
+  received_at TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'PENDING_VERIFICATION'
+);
+
 `);
+if(!db.pragma('table_info(users)').some(column=>column.name==='session_version')){
+  db.exec('ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0');
+}
+for(const [column,definition] of [
+  ['mfa_secret_enc','TEXT'],['mfa_pending_enc','TEXT'],['mfa_enabled','INTEGER NOT NULL DEFAULT 0'],['mfa_last_counter','INTEGER NOT NULL DEFAULT -1']
+]){
+  if(!db.pragma('table_info(users)').some(item=>item.name===column))db.exec(`ALTER TABLE users ADD COLUMN ${column} ${definition}`);
+}
 
 app.use(helmet());
 
@@ -103,6 +137,66 @@ const id = () => crypto.randomUUID();
 
 const now = () => new Date().toISOString();
 const loginProtection = createLoginProtection();
+const resetAttempts=new Map();
+const mfaConfirmAttempts=new Map();
+function mfaEncryptionKey(){
+ return resolveMfaEncryptionKey(process.env.MFA_ENCRYPTION_KEY);
+}
+
+// Sandbox integration: no charging, no automatic license activation.
+app.post('/api/integrations/asaas/webhook',(req,res)=>{
+  if(!secureTokenMatches(req.get('asaas-access-token'),process.env.ASAAS_WEBHOOK_TOKEN)) return res.status(401).json({error:'WEBHOOK_UNAUTHORIZED'});
+  let event;
+  try{event=validateAsaasEvent(req.body)}catch{return res.status(400).json({error:'INVALID_WEBHOOK'})}
+  const result=db.prepare(`INSERT OR IGNORE INTO v50_asaas_events(id,event_type,payment_id,subscription_id,received_at)
+    VALUES(?,?,?,?,?)`).run(event.id,event.event,event.paymentId,event.subscriptionId,now());
+  // An event is evidence to reconcile, not proof of payment or an authorization to grant access.
+  return res.json({received:true,duplicate:result.changes===0});
+});
+
+app.post('/api/auth/forgot-password',async(req,res)=>{
+  const email=typeof req.body?.email==='string'?req.body.email.trim().toLowerCase():'';
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254) return res.status(400).json({error:'INVALID_EMAIL'});
+  if(!process.env.RESEND_API_KEY||!process.env.RESEND_FROM_EMAIL||!process.env.PUBLIC_APP_URL)
+    return res.status(503).json({error:'PASSWORD_RECOVERY_NOT_CONFIGURED'});
+  const key=crypto.createHash('sha256').update(req.ip+'|'+email).digest('hex');
+  const last=resetAttempts.get(key)||0;
+  if(Date.now()-last<60000)return res.json({ok:true});
+  resetAttempts.set(key,Date.now());
+  if(resetAttempts.size>10000)resetAttempts.clear();
+  const user=db.prepare('SELECT id,email FROM users WHERE email=? AND active=1').get(email);
+  if(user){
+    const token=generateResetToken();
+    db.prepare('DELETE FROM v50_password_resets WHERE user_id=?').run(user.id);
+    db.prepare('INSERT INTO v50_password_resets(token_hash,user_id,expires_at) VALUES(?,?,?)')
+      .run(hashResetToken(token),user.id,Date.now()+20*60*1000);
+    const base=process.env.PUBLIC_APP_URL.replace(/\/$/,'');
+    try{await sendResendEmail({apiKey:process.env.RESEND_API_KEY,from:process.env.RESEND_FROM_EMAIL,
+      to:user.email,subject:'NEXORA Compliance One · recuperação de senha',
+      text:'Para redefinir sua senha, abra este link em até 20 minutos:\n'+base+'/?reset_token='+encodeURIComponent(token)+'\nSe você não solicitou, ignore esta mensagem.'});}
+    catch{db.prepare('DELETE FROM v50_password_resets WHERE token_hash=?').run(hashResetToken(token));}
+  }
+  return res.json({ok:true});
+});
+
+app.post('/api/auth/reset-password',async(req,res)=>{
+  const {token,password}=req.body||{};
+  if(typeof token!=='string'||token.length>256||typeof password!=='string'||password.length<12||password.length>1024)
+    return res.status(400).json({error:'INVALID_RESET_REQUEST'});
+  const row=db.prepare('SELECT user_id FROM v50_password_resets WHERE token_hash=? AND used_at IS NULL AND expires_at>?')
+    .get(hashResetToken(token),Date.now());
+  if(!row)return res.status(400).json({error:'RESET_TOKEN_INVALID_OR_EXPIRED'});
+  const newHash=await bcrypt.hash(password,12);
+  const updated=db.transaction(()=>{
+    const consumed=db.prepare('UPDATE v50_password_resets SET used_at=? WHERE token_hash=? AND used_at IS NULL AND expires_at>?')
+      .run(Date.now(),hashResetToken(token),Date.now());
+    if(consumed.changes!==1)return false;
+    db.prepare('UPDATE users SET password_hash=?,session_version=session_version+1 WHERE id=? AND active=1').run(newHash,row.user_id);
+    db.prepare('DELETE FROM v50_password_resets WHERE user_id=?').run(row.user_id);
+    return true;
+  })();
+  return updated?res.json({ok:true}):res.status(400).json({error:'RESET_TOKEN_INVALID_OR_EXPIRED'});
+});
 
 function createToken(user) {
   return jwt.sign(
@@ -112,6 +206,7 @@ function createToken(user) {
       role: user.role,
       name: user.name,
       email: user.email,
+      sessionVersion: user.session_version||0,
     },
     JWT_SECRET,
     {
@@ -133,8 +228,8 @@ function authenticate(req, res, next) {
 
   try {
     const claims = jwt.verify(token, JWT_SECRET);
-    const current = db.prepare("SELECT id, company_id, name, email, role, active FROM users WHERE id = ? AND company_id = ?").get(claims.sub, claims.companyId);
-    if (!current || current.active !== 1) {
+    const current = db.prepare("SELECT id, company_id, name, email, role, active, session_version FROM users WHERE id = ? AND company_id = ?").get(claims.sub, claims.companyId);
+    if (!sessionVersionValid(claims,current)) {
       return res.status(401).json({ error: "SESSION_REVOKED" });
     }
     req.user = {
@@ -151,6 +246,39 @@ function authenticate(req, res, next) {
     });
   }
 }
+
+app.post('/api/auth/mfa/enroll',authenticate,async(req,res)=>{
+  const key=mfaEncryptionKey();
+  if(!key)return res.status(503).json({error:'MFA_NOT_CONFIGURED'});
+  const user=db.prepare('SELECT * FROM users WHERE id=? AND company_id=?').get(req.user.sub,req.user.companyId);
+  if(!user||user.mfa_enabled)return res.status(409).json({error:'MFA_ALREADY_ENABLED'});
+  if(typeof req.body?.password!=='string'||!await bcrypt.compare(req.body.password,user.password_hash))
+    return res.status(401).json({error:'INVALID_CREDENTIALS'});
+  const secret=generateTotpSecret();
+  db.prepare('UPDATE users SET mfa_pending_enc=? WHERE id=?').run(encryptTotpSecret(secret,key),user.id);
+  const uri='otpauth://totp/'+encodeURIComponent('NEXORA Compliance One:'+user.email)+'?secret='+secret+'&issuer='+encodeURIComponent('NEXORA Compliance One')+'&algorithm=SHA1&digits=6&period=30';
+  return res.json({secret,otpauthUri:uri});
+});
+
+app.post('/api/auth/mfa/confirm',authenticate,(req,res)=>{
+  const key=mfaEncryptionKey();
+  if(!key)return res.status(503).json({error:'MFA_NOT_CONFIGURED'});
+  const user=db.prepare('SELECT * FROM users WHERE id=? AND company_id=?').get(req.user.sub,req.user.companyId);
+  if(!user?.mfa_pending_enc||user.mfa_enabled)return res.status(409).json({error:'MFA_ENROLLMENT_REQUIRED'});
+  const attempt=mfaConfirmAttempts.get(user.id)||{count:0,until:Date.now()+300000};
+  if(Date.now()>attempt.until){attempt.count=0;attempt.until=Date.now()+300000}
+  if(attempt.count>=5)return res.status(429).json({error:'MFA_TOO_MANY_ATTEMPTS'});
+  attempt.count++;mfaConfirmAttempts.set(user.id,attempt);
+  if(mfaConfirmAttempts.size>10000)mfaConfirmAttempts.clear();
+  let counter;
+  try{counter=verifyTotp(decryptTotpSecret(user.mfa_pending_enc,key),req.body?.code)}
+  catch{return res.status(400).json({error:'MFA_CODE_INVALID'})}
+  if(counter===null)return res.status(400).json({error:'MFA_CODE_INVALID'});
+  db.prepare('UPDATE users SET mfa_secret_enc=mfa_pending_enc,mfa_pending_enc=NULL,mfa_enabled=1,mfa_last_counter=?,session_version=session_version+1 WHERE id=?')
+    .run(counter,user.id);
+  mfaConfirmAttempts.delete(user.id);
+  return res.json({ok:true,reauthRequired:true});
+});
 
 const permissions = {
   Administrador: ["*"],
@@ -236,6 +364,9 @@ function audit(req, action, entity = "", entityId = "", metadata = {}) {
 }
 
 configureWhistleblower({app,db,authenticate,audit});
+configureAssessmentPreview({app,db,authenticate,requirePermission});
+configureAssessmentCycles({app,db,authenticate,requirePermission,audit});
+configureCorrectiveActions({app,db,authenticate,requirePermission,audit});
 
 /*
 |--------------------------------------------------------------------------
@@ -247,7 +378,7 @@ app.get("/api/health", (req, res) => {
   res.json({
     ok: true,
     service: "NEXUS API",
-    version: "V124",
+    version: process.env.APP_RELEASE_VERSION || "V50-STAGING",
     time: now(),
   });
 });
@@ -382,6 +513,8 @@ CREATE INDEX IF NOT EXISTS idx_evidence_files_tenant ON evidence_files(company_i
 const evidenceRoot=process.env.EVIDENCE_STORAGE_PATH||(production?"/var/data/evidence":path.resolve("evidence-dev"));
 if(production&&(!path.isAbsolute(evidenceRoot)||!evidenceRoot.startsWith("/var/data/")))throw Error("EVIDENCE_STORAGE_PATH must be under /var/data");
 fs.mkdirSync(evidenceRoot,{recursive:true,mode:0o700});
+configureAssessmentEvidenceReviews({app,db,authenticate,requirePermission,audit,evidenceRoot});
+configureV51ExecutiveMetrics({app,db,authenticate,requirePermission,evidenceRoot});
 app.post("/api/evidence/upload",authenticate,requirePermission("record:write"),(req,res)=>{
  const {actionId,name,mime,base64}=req.body||{};
  if(typeof actionId!=="string"||!actionId.trim()||typeof name!=="string"||!name.trim()||name.length>200||typeof base64!=="string"||base64.length>7_000_000)return res.status(400).json({error:"INVALID_UPLOAD"});
@@ -442,9 +575,9 @@ app.post("/api/bootstrap", async (req, res) => {
     });
   }
 
-  if (password.length < 10) {
+  if (typeof password !== "string" || password.length < 12) {
     return res.status(400).json({
-      error: "PASSWORD_MIN_10",
+      error: "PASSWORD_MIN_12",
     });
   }
 
@@ -543,6 +676,7 @@ app.post("/api/login", async (req, res) => {
   const {
     email,
     password,
+    totpCode,
   } = req.body || {};
 
   if(typeof email!=="string"||typeof password!=="string"||email.length>254||password.length>1024){
@@ -583,6 +717,19 @@ app.post("/api/login", async (req, res) => {
     });
   }
 
+  if(user.mfa_enabled){
+    const key=mfaEncryptionKey();
+    if(!key)return res.status(503).json({error:'MFA_NOT_CONFIGURED'});
+    if(!totpCode)return res.status(401).json({error:'MFA_REQUIRED'});
+    let counter;
+    try{counter=verifyTotp(decryptTotpSecret(user.mfa_secret_enc,key),totpCode,{lastCounter:user.mfa_last_counter})}
+    catch{counter=null}
+    if(counter===null){loginProtection.failure(attempt.key);return res.status(401).json({error:'MFA_CODE_INVALID'})}
+    const result=db.prepare('UPDATE users SET mfa_last_counter=? WHERE id=? AND mfa_last_counter<?')
+      .run(counter,user.id,counter);
+    if(result.changes!==1){loginProtection.failure(attempt.key);return res.status(401).json({error:'MFA_CODE_REPLAYED'})}
+  }
+
   const company = db
     .prepare(`
       SELECT
@@ -616,6 +763,8 @@ app.post("/api/login", async (req, res) => {
 | USUÁRIO ATUAL
 |--------------------------------------------------------------------------
 */
+
+configureV51Organization({app,db,authenticate,audit});
 
 app.get("/api/me", authenticate, (req, res) => {
   const user = db
@@ -659,8 +808,8 @@ app.get("/api/me", authenticate, (req, res) => {
 app.get(
   "/api/users",
   authenticate,
-  requirePermission("company:read"),
   (req, res) => {
+    if(!canReadUserDirectory(req.user.role))return res.status(403).json({error:"FORBIDDEN"});
     const users = db
       .prepare(`
         SELECT
@@ -685,17 +834,8 @@ app.get(
 app.post(
   "/api/users",
   authenticate,
-  requirePermission("company:read"),
   async (req, res) => {
-    if (
-      !["Administrador", "Compliance"].includes(
-        req.user.role
-      )
-    ) {
-      return res.status(403).json({
-        error: "FORBIDDEN",
-      });
-    }
+    if(!canCreateUser(req.user.role))return res.status(403).json({error:"FORBIDDEN"});
 
     const {
       name,
@@ -704,22 +844,8 @@ app.post(
       role,
     } = req.body || {};
 
-    if (
-      !name ||
-      !email ||
-      !password ||
-      !permissions[role]
-    ) {
-      return res.status(400).json({
-        error: "MISSING_FIELDS",
-      });
-    }
-    if((role==="Equipe de Apuração"||role==="Administrador") && req.user.role!=="Administrador"){
-      return res.status(403).json({error:"PERFIL_PRIVILEGIADO_REQUER_ADMINISTRADOR"});
-    }
-    if(typeof password!=="string"||password.length<12){
-      return res.status(400).json({error:"PASSWORD_MIN_12"});
-    }
+    const validation=validateNewUser({name,email,password,role});
+    if(!validation.ok)return res.status(400).json({error:validation.error});
 
     const userId = id();
 
@@ -744,10 +870,10 @@ app.post(
     `).run(
       userId,
       req.user.companyId,
-      name,
-      email.toLowerCase(),
+      validation.name,
+      validation.email,
       passwordHash,
-      role,
+      validation.role,
       1,
       now()
     );

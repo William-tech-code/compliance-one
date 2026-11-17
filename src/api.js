@@ -44,6 +44,16 @@ export async function apiHealth() {
   return parseResponse(response);
 }
 
+export async function requestPasswordReset(email) {
+  const response=await request(`${API_URL}/auth/forgot-password`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+  return parseResponse(response);
+}
+
+export async function confirmPasswordReset(token,password) {
+  const response=await request(`${API_URL}/auth/reset-password`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,password})});
+  return parseResponse(response);
+}
+
 export async function bootstrapCompany(data) {
   const response = await request(`${API_URL}/bootstrap`, {
     method: "POST",
@@ -79,6 +89,7 @@ export async function login(dataOrEmail, password) {
     body: JSON.stringify({
       email: String(data.email || "").trim().toLowerCase(),
       password: String(data.password || ""),
+      ...(data.totpCode?{totpCode:String(data.totpCode)}:{}),
     }),
   });
 
@@ -149,4 +160,18 @@ export async function apiPut(path, data, version) {
 
 export function logout() {
   localStorage.removeItem("nexus_api_token");
+}
+
+
+export async function apiPatch(path, data) {
+  const token = localStorage.getItem("nexus_api_token");
+  const response = await request(`${API_URL}${path}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(data),
+  });
+  return parseResponse(response);
 }

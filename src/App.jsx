@@ -1,5 +1,6 @@
 import EnterpriseGovernanceCenter from "./EnterpriseGovernanceCenter";
 import ExecutiveIntelligenceCenter from "./ExecutiveIntelligenceCenter";
+import V51ExecutiveDashboard from "./V51ExecutiveDashboard";
 import ComplianceIntelligencePanel from "./ComplianceIntelligencePanel";
 import CorrectiveActionsWorkspace from "./CorrectiveActionsWorkspace";
 import {complianceOperationsSummary} from "./complianceOperations";
@@ -16,7 +17,7 @@ import "./NexoraExecutiveSystem.css";
 import "./NexoraResponsive.css";
 import "./NexoraMobilePolish.css";
 import "./DashboardPremium.css";
-import { apiGet, apiPost, apiPut, bootstrapCompany, login, logout as apiLogout } from "./api";
+import { apiGet, apiPost, apiPut, apiPatch, bootstrapCompany, login, logout as apiLogout, requestPasswordReset, confirmPasswordReset } from "./api";
 import NexusV125CommandCenter from "./NexusV125CommandCenter";
 import NexusAICommandCenter from "./NexusAICommandCenter";
 import NexusDecisionEngine from "./NexusDecisionEngine";
@@ -227,56 +228,82 @@ function NexusEnterprisePanel({s, setPage}){
   </section>
 }
 
-function ProductionCenter({s,setS,notify}){
+function ProductionCenter({s,notify,user}){
   const [tab,setTab]=useState("empresa");
-  const [userName,setUserName]=useState("");
-  const [userRole,setUserRole]=useState("Compliance");
-  const [companyName,setCompanyName]=useState("");
-  const companies=Array.isArray(s.companies)&&s.companies.length?s.companies:[{id:"CURRENT",name:s.company.name||"Empresa atual",status:"Ativa"}];
-  const users=Array.isArray(s.users)?s.users:[];
-  const audit=Array.isArray(s.history)?s.history.slice(-12).reverse():[];
-  function addCompany(){
-    if(!companyName.trim()) return notify("Informe o nome da empresa.");
-    const c={id:uid("EMP"),name:companyName.trim(),status:"Ativa",created:now()};
-    setS({...s,companies:[...companies,c]});
-    setCompanyName(""); notify("Empresa adicionada ao portfólio NEXUS.");
-  }
-  function addUser(){
-    if(!userName.trim()) return notify("Informe o nome do usuário.");
-    const u={id:uid("USR"),name:userName.trim(),role:userRole,status:"Convite pendente",created:now()};
-    setS({...s,users:[...users,u],history:[...s.history,{id:uid("LOG"),text:`Usuário ${u.name} criado com perfil ${u.role}.`,date:now()}]});
-    setUserName(""); notify("Usuário criado. A etapa de autenticação real será conectada ao backend.");
-  }
+  const [company,setCompany]=useState(null);
+  const [members,setMembers]=useState([]);
+  const [events,setEvents]=useState([]);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState("");
+  const [draft,setDraft]=useState({name:"",segment:"",size:""});
+  const admin=user?.role==="Administrador";
+  const load=async()=>{
+    setBusy(true);setError("");
+    try{
+      const info=await apiGet("/v51/organization");
+      setCompany(info.company);
+      setDraft({name:info.company.name||"",segment:info.company.segment||"",size:info.company.size||""});
+      if(tab==="usuarios"){
+        const r=await apiGet("/v51/organization/users");setMembers(r.users||[]);
+      }
+      if(tab==="auditoria"){
+        const r=await apiGet("/v51/organization/audit");setEvents(r.events||[]);
+      }
+    }catch(e){setError(e.message||"Não foi possível carregar os dados autenticados.");}
+    finally{setBusy(false)}
+  };
+  useEffect(()=>{let active=true;(async()=>{
+    setBusy(true);setError("");
+    try{
+      const info=await apiGet("/v51/organization");
+      if(!active)return;
+      setCompany(info.company);
+      setDraft({name:info.company.name||"",segment:info.company.segment||"",size:info.company.size||""});
+      if(tab==="usuarios"){const r=await apiGet("/v51/organization/users");if(active)setMembers(r.users||[]);}
+      if(tab==="auditoria"){const r=await apiGet("/v51/organization/audit");if(active)setEvents(r.events||[]);}
+    }catch(e){if(active)setError(e.message||"Não foi possível acessar a organização.");}
+    finally{if(active)setBusy(false)}
+  })();return()=>{active=false};},[tab]);
+  const save=async()=>{
+    if(!admin)return notify("Apenas administradores podem editar a empresa.");
+    if(draft.name.trim().length<2)return notify("Informe um nome válido para a empresa.");
+    setBusy(true);setError("");
+    try{
+      const result=await apiPatch("/v51/organization",draft);
+      setCompany(result.company);
+      notify("Perfil da organização salvo no servidor.");
+    }catch(e){setError(e.message||"Falha ao salvar");}
+    finally{setBusy(false)}
+  };
   return <div className="page">
-    <div className="prod-hero"><div><small>NEXUS · PRODUCTION READINESS</small><h1>Centro de Operação Empresarial</h1><p>Preparação para múltiplas empresas, usuários, permissões, auditoria e operação comercial.</p></div><div className="prod-badge">CORE<br/><b>READY</b></div></div>
-    <div className="prod-tabs">{[["empresa","Empresas"],["usuarios","Usuários"],["auditoria","Auditoria"],["arquitetura","Arquitetura"]].map(x=><button className={tab===x[0]?"active":""} onClick={()=>setTab(x[0])} key={x[0]}>{x[1]}</button>)}</div>
-    {tab==="empresa"&&<Panel title="Portfólio de empresas" sub="Estrutura preparada para separar dados por organização.">
-      <div className="prod-form"><input value={companyName} onChange={e=>setCompanyName(e.target.value)} placeholder="Nome da nova empresa"/><button className="primary" onClick={addCompany}>+ Adicionar empresa</button></div>
-      <div className="prod-list">{companies.map(c=><div key={c.id}><div><b>{c.name}</b><span>{c.status} · {c.id}</span></div><strong>ABRIR →</strong></div>)}</div>
+    <div className="nexora-company-hero">
+      <div><small>COMPLIANCE ONE · AMBIENTE AUTENTICADO</small><h1>Minha organização</h1><p>Perfil empresarial, usuários e auditoria vinculados à organização autenticada no servidor.</p></div>
+      <div className="nexora-company-number"><strong>{company?"01":"—"}</strong><span>organização ativa</span></div>
+    </div>
+    <div className="prod-tabs">{[["empresa","Perfil empresarial"],["usuarios","Equipe e perfis"],["auditoria","Trilha de auditoria"],["arquitetura","Segurança e implantação"]].map(([key,label])=><button key={key} className={tab===key?"active":""} onClick={()=>setTab(key)}>{label}</button>)}</div>
+    {error&&<div className="prod-warning" role="alert"><b>Não foi possível carregar</b><p>{error}</p><button onClick={load}>Tentar novamente</button></div>}
+    {busy&&<p role="status">Sincronizando informações seguras...</p>}
+    {!company&&!busy&&!error&&<p>Nenhuma organização autenticada encontrada.</p>}
+    {tab==="empresa"&&company&&<Panel title="Perfil da organização" sub="Dados oficiais do ambiente atual. Alterações ficam registradas no banco e na auditoria.">
+      <div className="prod-form">
+        <label>Nome<input value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})} disabled={!admin||busy}/></label>
+        <label>Segmento<input value={draft.segment} onChange={e=>setDraft({...draft,segment:e.target.value})} disabled={!admin||busy}/></label>
+        <label>Porte<input value={draft.size} onChange={e=>setDraft({...draft,size:e.target.value})} disabled={!admin||busy}/></label>
+        {admin&&<button className="primary" disabled={busy} onClick={save}>Salvar organização</button>}
+      </div>
+      <p>Identificador do ambiente: <code>{company.id}</code>. Não é possível trocar de empresa ou cadastrar outra organização por esta tela.</p>
     </Panel>}
-    {tab==="usuarios"&&<Panel title="Usuários e perfis" sub="Perfis separados para reduzir exposição indevida.">
-      <div className="prod-form"><input value={userName} onChange={e=>setUserName(e.target.value)} placeholder="Nome do usuário"/><select value={userRole} onChange={e=>setUserRole(e.target.value)}>{NEXUS_ROLES.map(r=><option key={r[0]}>{r[0]}</option>)}</select><button className="primary" onClick={addUser}>+ Criar acesso</button></div>
-      <div className="role-grid">{NEXUS_ROLES.map(r=><div key={r[0]}><b>{r[0]}</b><span>{r[1]}</span></div>)}</div>
-      <div className="prod-list">{users.map(u=><div key={u.id}><div><b>{u.name}</b><span>{u.role} · {u.status}</span></div></div>)}</div>
+    {tab==="usuarios"&&<Panel title="Equipe e perfis" sub="Contas reais da organização. Novos acessos exigem provisionamento autorizado; não são gerados convites fictícios.">
+      {members.length?<div className="prod-list">{members.map(member=><div key={member.id}><div><b>{member.name}</b><span>{member.email} · {member.role}</span></div><span className="nexora-company-state">{member.active?"Ativo":"Inativo"}</span></div>)}</div>:!busy&&!error?<p>Nenhuma conta disponível para o seu perfil.</p>:null}
     </Panel>}
-    {tab==="auditoria"&&<Panel title="Trilha de auditoria" sub="Últimos eventos registrados pelo NEXUS.">
-      <div className="audit-list">{audit.length?audit.map(x=><div key={x.id}><b>{x.date}</b><span>{x.text}</span></div>):<div className="empty-line">Nenhum evento registrado.</div>}</div>
+    {tab==="auditoria"&&<Panel title="Auditoria da organização" sub="Eventos registrados pela API, filtrados pela organização autenticada.">
+      {events.length?<div className="audit-list">{events.map(event=><div key={event.id}><b>{event.created_at}</b><span>{event.action} · {event.entity||"Sistema"}</span></div>)}</div>:!busy&&!error?<p>Nenhum evento disponível.</p>:null}
     </Panel>}
-    {tab==="arquitetura"&&<Panel title="Arquitetura comercial" sub="Checklist de preparação antes de colocar uma empresa real em produção.">
-      <div className="readiness-grid">{[
-        ["Multiempresa","Separação lógica por empresa",true],
-        ["Perfis","Roles de acesso definidos",true],
-        ["Auditoria","Histórico de eventos",true],
-        ["Documentos","Versionamento e revisão",true],
-        ["Jurídico","Fluxo segregado",true],
-        ["Banco de dados","Backend persistente e isolado",false],
-        ["Autenticação","Login seguro e recuperação",false],
-        ["Armazenamento","Arquivos privados e backup",false],
-        ["Monitoramento","Alertas e observabilidade",false]
-      ].map(x=><div key={x[0]} className={x[2]?"done":"pending"}><span>{x[2]?"✓":"○"}</span><div><b>{x[0]}</b><small>{x[1]}</small></div></div>)}</div>
-      <div className="prod-warning"><b>IMPORTANTE PARA CLIENTE REAL</b><p>A interface local está pronta para homologação, mas autenticação, banco de dados, armazenamento privado e isolamento multi-tenant ainda precisam ser implementados no backend antes de receber dados reais de clientes.</p></div>
+    {tab==="arquitetura"&&<Panel title="Segurança e implantação" sub="Controles existentes e dependências da homologação V51.">
+      <p>O acesso às organizações é limitado ao contexto autenticado. O backup externo de produção, a restauração isolada e o processo completo de provisionamento SaaS permanecem pendentes de homologação.</p>
+      <p>Asaas e Resend permanecem desativados. Não é possível criar clientes ou cobrar assinaturas por esta tela.</p>
     </Panel>}
-  </div>
+  </div>;
 }
 
 const NEXUS_DOCUMENT_TEMPLATES = {
@@ -761,6 +788,7 @@ function AppCore() {
   const [busy,setBusy] = useState(null);
   const [toast,setToast] = useState("");
   const [modal,setModal] = useState(null);
+  const [settingsOpen,setSettingsOpen] = useState(false);
   const [detail,setDetail] = useState(null);
   const [apiUser,setApiUser] = useState(null);
   const [apiLoading,setApiLoading] = useState(true);
@@ -931,8 +959,8 @@ function AppCore() {
     }
   }
 
-  async function handleApiLogin(email,password){
-    const session=await login(email,password);
+  async function handleApiLogin(email,password,totpCode){
+    const session=await login({email,password,totpCode});
     await connectApi(session);
     setModal(null);
     setShowEntry(false);
@@ -1224,7 +1252,7 @@ function attach(files,owner,ownerId) {
     notify("Workspace local reiniciado.");
   }
 
-  const nav=[["dashboard","⌂","Dashboard"],["denuncias","⚑","Canal de Denúncias"],["global","◎","Global Compliance"],["empresa","▣","Empresa"],...steps.slice(1).map(([k,l],i)=>[k,["◈","☑","△","✓","📎","§","▤"][i],l]),["documentos","▤","Documentos Inteligentes"],["standards","◌","Atualizações & Frameworks"],["producao","⌘","Operação Empresarial"],["matriz-filosofica","◉","Matriz Filosófica"]];
+  const nav=[["dashboard","⌂","Visão Geral"],["producao","▣","Empresas"],["global","◎","Compliance Global"],["empresa","▤","Perfil da Empresa"],...steps.slice(1).map(([k,l],i)=>[k,["◈","☑","△","✓","📎","§","▤"][i],l]),["documentos","▤","Documentos Inteligentes"],["standards","◌","Atualizações & Frameworks"],["denuncias","⚑","Canal de Denúncias"],["matriz-filosofica","◉","Matriz Filosófica"]];
 
   const enterExperience=()=>{ try { sessionStorage.setItem("nexus-entry-v119","1"); } catch {} setS(prev=>({...prev,firstAccess:false,history:[...(prev.history||[]),{id:uid("LOG"),text:"Experiência inteligente iniciada.",date:now()}]})); setPage("empresa"); setShowEntry(false); };
   const enterDemo=()=>{ try { sessionStorage.setItem("nexus-entry-v119","1"); } catch {} const demo={name:"Empresa Demo NEXUS",document:"TESTE-0001",segment:"Supermercados / Varejo",size:"Média empresa",city:"São Paulo / SP",mode:"SaaS + Assessoria",responsible:"Usuário Teste",director:"Diretor Demo"}; setS(prev=>({...prev,firstAccess:false,company:demo,workflow:{...prev.workflow,empresa:true},history:[...(prev.history||[]),{id:uid("LOG"),text:"Ambiente DEMO iniciado.",date:now()}]})); setPage("diagnostico"); setShowEntry(false); };
@@ -1239,23 +1267,34 @@ function attach(files,owner,ownerId) {
       <div className="brand"><b>N</b><div><strong>NEXORA</strong><small>COMPLIANCE ONE · ENTERPRISE</small></div></div>
       <div className="company"><small>EMPRESA ATIVA</small><strong>{s.company.name||"Novo projeto"}</strong><span>{s.company.segment||"Aguardando cadastro"}</span></div>
       <nav>{nav.map(([k,ic,l])=><button key={k} className={page===k?"active":""} onClick={()=>go(k)}><i>{ic}</i><span>{l}</span>{s.workflow[k]&&<em>✓</em>}</button>)}</nav>
-      <div className="engine">● NEXUS INTELLIGENCE ENGINE <b>ONLINE</b></div>
+      <div className="nexora-sidebar-footer"><span>◈ Ambiente seguro</span><small>Compliance One · Enterprise</small></div>
     </aside>
 
     <main className="nexus-main">
-      <header><div><small>NEXUS / INTELLIGENCE CENTER / {page.toUpperCase()}</small><strong>{nav.find(x=>x[0]===page)?.[2]||"Command Center"}</strong></div>
-        <div className="top-actions">
-          <button aria-label="Ir ao Canal de Denúncias" onClick={()=>setPage("denuncias")}>⚑ Canal de Denúncias</button>
-          <button className="nexora-update-bell" aria-label="Abrir central de novidades e atualizações" onClick={()=>document.getElementById("nexora-update-center")?.scrollIntoView({behavior:"smooth",block:"start"})}>♧ <span>Novidades</span><i aria-hidden="true"/></button>
-          <button onClick={()=>setModal("company")}>✎ Editar empresa</button>
-          <button onClick={exportBackup}>↓ Backup</button>
-          {apiUser && <button onClick={openVersionHistory}>◷ Histórico de versões</button>}
-          <label className="top-file">↑ Restaurar<input hidden type="file" accept="application/json,.json" onChange={e=>restoreBackup(e.target.files?.[0])}/></label>
-          <button onClick={resetWorkspace}>↺ Reiniciar</button>
-          {apiUser
-            ? <button onClick={disconnectApi}>● API V124 · {apiUser.role}</button>
-            : <button onClick={()=>setModal("auth")}>⇄ Conectar API</button>}
-          <span>{apiUser?(apiSyncing?"● Sincronizando":apiSyncError?"⚠ Falha ao salvar na API":"● API conectada"):"● Modo local"}</span>
+      <header className="nexora-clean-header">
+        <div className="nexora-header-title"><small>COMPLIANCE ONE <span>/</span> {s.company.name||"Ambiente empresarial"}</small><strong>{nav.find(x=>x[0]===page)?.[2]||"Visão Geral"}</strong></div>
+        <div className="nexora-header-actions">
+          <button className="nexora-header-icon" title="Novidades e atualizações" aria-label="Novidades e atualizações" onClick={()=>window.dispatchEvent(new Event("nexora:open-updates"))}>♧ <span className="nexora-header-dot"/></button>
+          <div className="nexora-settings">
+            <button className="nexora-profile-trigger" aria-expanded={settingsOpen} aria-controls="nexora-settings-menu" onClick={()=>setSettingsOpen(v=>!v)}>
+              <span className="nexora-profile-avatar">{String(apiUser?.name||apiUser?.email||"A").slice(0,1).toUpperCase()}</span>
+              <span className="nexora-profile-name">{apiUser?.name||"Administrador"}<small>{apiUser?.role||"Usuário"}</small></span>
+              <span aria-hidden="true">⌄</span>
+            </button>
+            {settingsOpen&&<div id="nexora-settings-menu" className="nexora-settings-menu">
+              <div className="nexora-settings-label">CONTA E EMPRESA</div>
+              <button onClick={()=>{setModal("company");setSettingsOpen(false)}}>✎ Editar empresa</button>
+              <button onClick={()=>{setModal("mfa");setSettingsOpen(false)}}>◇ Segurança MFA</button>
+              <div className="nexora-settings-label">DADOS E SISTEMA</div>
+              <button onClick={()=>{exportBackup();setSettingsOpen(false)}}>↓ Exportar backup</button>
+              <label className="nexora-settings-upload">↑ Restaurar backup<input hidden type="file" accept="application/json,.json" onChange={e=>{restoreBackup(e.target.files?.[0]);setSettingsOpen(false);e.target.value=""}}/></label>
+              <button onClick={()=>{openVersionHistory();setSettingsOpen(false)}}>◷ Histórico de versões</button>
+              <button onClick={()=>{resetWorkspace();setSettingsOpen(false)}}>↺ Reiniciar espaço local</button>
+              <div className="nexora-settings-label">SESSÃO</div>
+              <div className="nexora-settings-status">{apiSyncing?"Sincronizando alterações":apiSyncError?"Erro de sincronização":"Conectado com segurança"}</div>
+              <button className="nexora-signout" onClick={()=>{setSettingsOpen(false);disconnectApi()}}>↪ Sair da conta</button>
+            </div>}
+          </div>
         </div>
       </header>
 
@@ -1278,9 +1317,9 @@ function attach(files,owner,ownerId) {
         <p>{operationalActions.total} ações registradas no novo fluxo · {operationalActions.overdue} vencidas · {operationalActions.pendingValidation} aguardando validação independente · {operationalActions.completed} concluídas</p>
         <small>Indicadores das ações do fluxo de evidências; não incluem ações legadas até sua migração.</small>
       </section>}
-      <div id="nexora-update-center"><ReleaseCenter/></div>
+      <ReleaseCenter/>
       <div className="content">
-        <div className="steps">{steps.map(([k,l],i)=><button key={k} className={`${page===k?"current ":""}${s.workflow[k]?"done":""}`} onClick={()=>go(k)}><b>{s.workflow[k]?"✓":i+1}</b><span>{l}</span></button>)}</div>
+        {page!=="dashboard"&&page!=="producao"&&<div className="steps">{steps.map(([k,l],i)=><button key={k} className={`${page===k?"current ":""}${s.workflow[k]?"done":""}`} onClick={()=>go(k)}><b>{s.workflow[k]?"✓":i+1}</b><span>{l}</span></button>)}</div>}
 
         {page==="dashboard" && <Dashboard s={s} maturity={maturity} progress={progress} stats={stats} go={go}/>}
         {page==="global" && <GlobalCompliance s={s} setS={setS} analysis={frameworkAnalysis()} notify={notify}/>}{page==="empresa" && <CompanyPage s={s} open={()=>setModal("company")} />}
@@ -1292,13 +1331,14 @@ function attach(files,owner,ownerId) {
         {page==="evidencias" && <Evidence s={s} attach={attach} finish={finish}/>}
         {page==="juridico" && <AutoLegal s={s} confirm={confirmLegal} finish={finish}/>}
         {page==="matriz-filosofica" && <PhilosophyMatrix s={s} openDocument={d=>setDetail({type:"document",item:d})} />}
-        {page==="documentos" && <DocumentCenter s={s} generate={generateDocuments} openDocument={d=>setDetail({type:"document",item:d})} />}{page==="standards" && <><ComplianceIntelligencePanel workspace={s} authenticated={!!apiUser} notify={notify}/><RegulatoryReviewPanel s={s} setS={setS} notify={notify} questions={questions} reviewer={apiUser?.name||apiUser?.email||""}/><StandardsCenter s={s} analysis={frameworkAnalysis()} notify={notify}/></>}{page==="producao" && <ProductionCenter s={s} setS={setS} notify={notify}/>} 
+        {page==="documentos" && <DocumentCenter s={s} generate={generateDocuments} openDocument={d=>setDetail({type:"document",item:d})} />}{page==="standards" && <><ComplianceIntelligencePanel workspace={s} authenticated={!!apiUser} notify={notify}/><RegulatoryReviewPanel s={s} setS={setS} notify={notify} questions={questions} reviewer={apiUser?.name||apiUser?.email||""}/><StandardsCenter s={s} analysis={frameworkAnalysis()} notify={notify}/></>}{page==="producao" && <ProductionCenter s={s} notify={notify} user={apiUser}/>} 
         {page==="relatorio" && <Report s={s} maturity={maturity} progress={progress} print={printReport} setS={setS} framework={frameworkAnalysis()}/>}
         {page==="denuncias" && <Denunciations apiUser={apiUser}/>}
       </div>
     </main>
 
     {modal==="auth" && <AuthModal close={()=>setModal(null)} onLogin={handleApiLogin} onBootstrap={handleApiBootstrap}/>}
+    {modal==="mfa" && <MfaSetup close={()=>setModal(null)} onEnabled={()=>{setModal(null);disconnectApi()}}/>}
     {modal==="company" && <CompanyModal close={()=>setModal(null)} save={saveCompany} current={s.company}/>}
     {modal==="den" && <DenModal close={()=>setModal(null)} save={d=>{
       const protocol=`DEN-${new Date().getFullYear()}-${String(Date.now()).slice(-8)}`;
@@ -1454,6 +1494,7 @@ function NexusPremiumOverview({s,maturity,progress,stats,go}){
 function Dashboard({s,maturity,progress,stats,go}){
   const hasCompany=!!s.company.name;
   return <div className="command-center">
+    <V51ExecutiveDashboard/>
     <div className="command-hero">
       <div className="hero-glow glow-a"></div><div className="hero-glow glow-b"></div>
       <div className="hero-copy">
@@ -1721,7 +1762,7 @@ function Report({s,maturity,progress,print,setS,framework={selected:[]}}){
 }
 
 function AuthModal({close,onLogin,onBootstrap}){
-  const [mode,setMode]=useState("login");
+  const [mode,setMode]=useState(()=>new URLSearchParams(window.location.search).has('reset_token')?'reset':'login');
   const [email,setEmail]=useState("");
   const [password,setPassword]=useState("");
   const [companyName,setCompanyName]=useState("");
@@ -1730,6 +1771,24 @@ function AuthModal({close,onLogin,onBootstrap}){
   const [size,setSize]=useState("Pequena empresa");
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
+  const [success,setSuccess]=useState("");
+  const [totpCode,setTotpCode]=useState("");
+  const [mfaRequired,setMfaRequired]=useState(false);
+
+  async function recover(){
+    setBusy(true);setError("");setSuccess("");
+    try{
+      if(mode==='forgot'){
+        await requestPasswordReset(email);
+        setSuccess('Se a conta estiver ativa, enviaremos um link de recuperação para o e-mail informado.');
+      }else if(mode==='reset'){
+        await confirmPasswordReset(new URLSearchParams(window.location.search).get('reset_token'),password);
+        window.history.replaceState(null,'',window.location.pathname);
+        setMode('login');setPassword('');setSuccess('Senha atualizada. Entre com sua nova senha.');
+      }
+    }catch(e){setError(e.message||'Não foi possível concluir a recuperação.');}
+    finally{setBusy(false)}
+  }
 
   async function submit(e){
     e.preventDefault();
@@ -1740,12 +1799,14 @@ function AuthModal({close,onLogin,onBootstrap}){
     setBusy(true);
     try{
       if(mode==="login"){
-        await onLogin(email,password);
+        await onLogin(email,password,totpCode);
       }else{
         await onBootstrap({companyName:companyName.trim(),segment,size,adminName:adminName.trim(),email:email.trim(),password});
       }
     }catch(err){
-      setError(String(err?.message||"Não foi possível concluir a operação."));
+      if(err?.message==='MFA_REQUIRED'){
+        setMfaRequired(true);setError('Digite o código de seis dígitos do aplicativo autenticador.');
+      }else setError(String(err?.message||"Não foi possível concluir a operação."));
     }finally{
       setBusy(false);
     }
@@ -1755,8 +1816,15 @@ function AuthModal({close,onLogin,onBootstrap}){
     <div className="form">
       <div className="live-filters action-filter">
         <button type="button" className={mode==="login"?"active":""} onClick={()=>{setMode("login");setError("")}}>Entrar</button>
-        <button type="button" className={mode==="bootstrap"?"active":""} onClick={()=>{setMode("bootstrap");setError("")}}>Criar empresa</button>
+        {mode==='forgot'||mode==='reset'?<button type="button" className="active">Recuperação segura</button>:null}
       </div>
+      {mode==='forgot'||mode==='reset'?<>
+        {mode==='forgot'?<label>E-mail da conta<input type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email"/></label>:<label>Nova senha (mínimo de 12 caracteres)<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="new-password"/></label>}
+        {error&&<div className="secure-note" role="alert">⚠ {error}</div>}
+        {success&&<div className="secure-note" role="status">✓ {success}</div>}
+        <button className="primary" disabled={busy||(mode==='forgot'?!email.includes('@'):password.length<12)} onClick={recover}>{busy?'Aguarde…':mode==='forgot'?'Enviar link de recuperação':'Atualizar senha'}</button>
+        <button className="ghost" type="button" onClick={()=>{setMode('login');setError('');window.history.replaceState(null,'',window.location.pathname)}}>Voltar ao login</button>
+      </>:<>
       {mode==="bootstrap"&&<>
         <label>Empresa<input value={companyName} onChange={e=>setCompanyName(e.target.value)} placeholder="Razão social / nome"/></label>
         <label>Administrador<input value={adminName} onChange={e=>setAdminName(e.target.value)} placeholder="Nome do administrador"/></label>
@@ -1765,11 +1833,42 @@ function AuthModal({close,onLogin,onBootstrap}){
       </>}
       <label>E-mail<input type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="username" placeholder="administrador@empresa.com"/></label>
       <label>Senha<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode==="login"?"current-password":"new-password"} placeholder="••••••••"/></label>
+      {mode==='login'&&mfaRequired&&<label>Código do autenticador<input type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" value={totpCode} onChange={e=>setTotpCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000000"/></label>}
       {error&&<div className="secure-note">⚠ {error}</div>}
+      {success&&<div className="secure-note" role="status">✓ {success}</div>}
       <div className="form-note">🔐 A autenticação usa JWT no backend V124. O workspace permanece local quando a API não estiver conectada.</div>
       <button className="primary" disabled={busy} onClick={submit}>{busy?"Conectando...":mode==="login"?"Entrar com segurança":"Criar empresa e entrar"}</button>
+      {mode==='login'&&<button className="ghost" type="button" onClick={()=>{setMode('forgot');setError('');setSuccess('')}}>Esqueci minha senha</button>}
+      </>}
     </div>
   </Modal>
+}
+
+function MfaSetup({close,onEnabled}){
+  const [password,setPassword]=useState(''),[code,setCode]=useState(''),[secret,setSecret]=useState(''),[uri,setUri]=useState('');
+  const [busy,setBusy]=useState(false),[error,setError]=useState('');
+  const enroll=async()=>{
+    setBusy(true);setError('');
+    try{const result=await apiPost('/auth/mfa/enroll',{password});setSecret(result.secret);setUri(result.otpauthUri);setPassword('')}
+    catch(e){setError(e.message)}finally{setBusy(false)}
+  };
+  const confirm=async()=>{
+    setBusy(true);setError('');
+    try{await apiPost('/auth/mfa/confirm',{code});onEnabled()}
+    catch(e){setError(e.message)}finally{setBusy(false)}
+  };
+  return <Modal title="Segurança da conta · MFA" close={close}>
+    <div className="form">
+      <p>Ative uma segunda etapa de autenticação com um aplicativo compatível com códigos TOTP. Guarde a chave em local seguro e não a compartilhe.</p>
+      {!secret?<><label>Confirme sua senha<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)}/></label><button className="primary" disabled={busy||!password} onClick={enroll}>Iniciar ativação MFA</button></>
+        :<><div className="secure-note"><b>Chave de configuração (uso único)</b><p style={{overflowWrap:'anywhere',fontSize:16,letterSpacing:2}}>{secret}</p><small>Informe a chave no aplicativo autenticador. Não armazene esta chave em capturas de tela.</small></div>
+          <a href={uri} rel="nofollow">Abrir no aplicativo autenticador ↗</a>
+          <label>Código de confirmação<input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,'').slice(0,6))}/></label>
+          <button className="primary" disabled={busy||code.length!==6} onClick={confirm}>Confirmar e ativar MFA</button></>}
+      {error&&<p role="alert" className="secure-note">⚠ {error}</p>}
+      <p className="form-note">Após ativar, você precisará entrar novamente. A recuperação de MFA exige um procedimento de suporte com verificação de identidade.</p>
+    </div>
+  </Modal>;
 }
 
 function CompanyModal({close,save,current}){const [f,setF]=useState(current);return <Modal title="Cadastro da empresa" close={close}><div className="form">{[["name","Nome / Razão social"],["document","CNPJ / Identificação"],["city","Cidade / UF"],["responsible","Responsável pelo Compliance"],["director","Diretor"]].map(([k,l])=><label key={k}>{l}<input value={f[k]||""} onChange={e=>setF({...f,[k]:e.target.value})}/></label>)}<label>Segmento<select value={f.segment} onChange={e=>setF({...f,segment:e.target.value})}><option value="">Selecione</option>{SEGMENTS.map(x=><option key={x}>{x}</option>)}</select></label><label>Porte<select value={f.size} onChange={e=>setF({...f,size:e.target.value})}><option value="">Selecione</option>{SIZES.map(x=><option key={x}>{x}</option>)}</select></label><label>Modelo<select value={f.mode} onChange={e=>setF({...f,mode:e.target.value})}><option value="">Selecione</option>{MODES.map(x=><option key={x}>{x}</option>)}</select></label><div className="form-note">🌎 Depois do cadastro, use <b>Global Compliance</b> para informar jurisdições e exposição internacional. O motor recalcula os frameworks automaticamente.</div><button className="primary" onClick={()=>save(f)}>Salvar e iniciar</button></div></Modal>}
