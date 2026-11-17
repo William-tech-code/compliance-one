@@ -17,7 +17,7 @@ import "./NexoraExecutiveSystem.css";
 import "./NexoraResponsive.css";
 import "./NexoraMobilePolish.css";
 import "./DashboardPremium.css";
-import { apiGet, apiPost, apiPut, bootstrapCompany, login, logout as apiLogout, requestPasswordReset, confirmPasswordReset } from "./api";
+import { apiGet, apiPost, apiPut, apiPatch, bootstrapCompany, login, logout as apiLogout, requestPasswordReset, confirmPasswordReset } from "./api";
 import NexusV125CommandCenter from "./NexusV125CommandCenter";
 import NexusAICommandCenter from "./NexusAICommandCenter";
 import NexusDecisionEngine from "./NexusDecisionEngine";
@@ -228,56 +228,82 @@ function NexusEnterprisePanel({s, setPage}){
   </section>
 }
 
-function ProductionCenter({s,setS,notify}){
+function ProductionCenter({s,notify,user}){
   const [tab,setTab]=useState("empresa");
-  const [userName,setUserName]=useState("");
-  const [userRole,setUserRole]=useState("Compliance");
-  const [companyName,setCompanyName]=useState("");
-  const companies=Array.isArray(s.companies)&&s.companies.length?s.companies:[{id:"CURRENT",name:s.company.name||"Empresa atual",status:"Ativa"}];
-  const users=Array.isArray(s.users)?s.users:[];
-  const audit=Array.isArray(s.history)?s.history.slice(-12).reverse():[];
-  function addCompany(){
-    if(!companyName.trim()) return notify("Informe o nome da empresa.");
-    const c={id:uid("EMP"),name:companyName.trim(),status:"Ativa",created:now()};
-    setS({...s,companies:[...companies,c]});
-    setCompanyName(""); notify("Empresa adicionada ao portfólio NEXUS.");
-  }
-  function addUser(){
-    if(!userName.trim()) return notify("Informe o nome do usuário.");
-    const u={id:uid("USR"),name:userName.trim(),role:userRole,status:"Convite pendente",created:now()};
-    setS({...s,users:[...users,u],history:[...s.history,{id:uid("LOG"),text:`Usuário ${u.name} criado com perfil ${u.role}.`,date:now()}]});
-    setUserName(""); notify("Usuário criado. A etapa de autenticação real será conectada ao backend.");
-  }
+  const [company,setCompany]=useState(null);
+  const [members,setMembers]=useState([]);
+  const [events,setEvents]=useState([]);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState("");
+  const [draft,setDraft]=useState({name:"",segment:"",size:""});
+  const admin=user?.role==="Administrador";
+  const load=async()=>{
+    setBusy(true);setError("");
+    try{
+      const info=await apiGet("/v51/organization");
+      setCompany(info.company);
+      setDraft({name:info.company.name||"",segment:info.company.segment||"",size:info.company.size||""});
+      if(tab==="usuarios"){
+        const r=await apiGet("/v51/organization/users");setMembers(r.users||[]);
+      }
+      if(tab==="auditoria"){
+        const r=await apiGet("/v51/organization/audit");setEvents(r.events||[]);
+      }
+    }catch(e){setError(e.message||"Não foi possível carregar os dados autenticados.");}
+    finally{setBusy(false)}
+  };
+  useEffect(()=>{let active=true;(async()=>{
+    setBusy(true);setError("");
+    try{
+      const info=await apiGet("/v51/organization");
+      if(!active)return;
+      setCompany(info.company);
+      setDraft({name:info.company.name||"",segment:info.company.segment||"",size:info.company.size||""});
+      if(tab==="usuarios"){const r=await apiGet("/v51/organization/users");if(active)setMembers(r.users||[]);}
+      if(tab==="auditoria"){const r=await apiGet("/v51/organization/audit");if(active)setEvents(r.events||[]);}
+    }catch(e){if(active)setError(e.message||"Não foi possível acessar a organização.");}
+    finally{if(active)setBusy(false)}
+  })();return()=>{active=false};},[tab]);
+  const save=async()=>{
+    if(!admin)return notify("Apenas administradores podem editar a empresa.");
+    if(draft.name.trim().length<2)return notify("Informe um nome válido para a empresa.");
+    setBusy(true);setError("");
+    try{
+      const result=await apiPatch("/v51/organization",draft);
+      setCompany(result.company);
+      notify("Perfil da organização salvo no servidor.");
+    }catch(e){setError(e.message||"Falha ao salvar");}
+    finally{setBusy(false)}
+  };
   return <div className="page">
-    <div className="nexora-company-hero"><div><small>GESTÃO EMPRESARIAL</small><h1>Empresas e ambientes</h1><p>Organize seu portfólio e acompanhe a governança de cada organização em uma única experiência.</p></div><div className="nexora-company-number"><strong>{companies.length}</strong><span>{companies.length===1?"empresa cadastrada":"empresas cadastradas"}</span></div></div>
-    <div className="prod-tabs">{[["empresa","Portfólio"],["usuarios","Equipe e perfis"],["auditoria","Trilha de auditoria"],["arquitetura","Preparação técnica"]].map(x=><button className={tab===x[0]?"active":""} onClick={()=>setTab(x[0])} key={x[0]}>{x[1]}</button>)}</div>
-    {tab==="empresa"&&<Panel title="Portfólio de empresas" sub="Centralize a organização dos cadastros. Cada ambiente exige autenticação e validação de permissões.">
-      <div className="prod-form"><input value={companyName} onChange={e=>setCompanyName(e.target.value)} placeholder="Nome da nova empresa"/><button className="primary" onClick={addCompany}>+ Adicionar empresa</button></div>
-      <div className="prod-list">{companies.map(c=><div key={c.id}><div><b>{c.name}</b><span>{c.status} · {c.id}</span></div><span className="nexora-company-state">Cadastro no portfólio</span></div>)}</div>
+    <div className="nexora-company-hero">
+      <div><small>COMPLIANCE ONE · AMBIENTE AUTENTICADO</small><h1>Minha organização</h1><p>Perfil empresarial, usuários e auditoria vinculados à organização autenticada no servidor.</p></div>
+      <div className="nexora-company-number"><strong>{company?"01":"—"}</strong><span>organização ativa</span></div>
+    </div>
+    <div className="prod-tabs">{[["empresa","Perfil empresarial"],["usuarios","Equipe e perfis"],["auditoria","Trilha de auditoria"],["arquitetura","Segurança e implantação"]].map(([key,label])=><button key={key} className={tab===key?"active":""} onClick={()=>setTab(key)}>{label}</button>)}</div>
+    {error&&<div className="prod-warning" role="alert"><b>Não foi possível carregar</b><p>{error}</p><button onClick={load}>Tentar novamente</button></div>}
+    {busy&&<p role="status">Sincronizando informações seguras...</p>}
+    {!company&&!busy&&!error&&<p>Nenhuma organização autenticada encontrada.</p>}
+    {tab==="empresa"&&company&&<Panel title="Perfil da organização" sub="Dados oficiais do ambiente atual. Alterações ficam registradas no banco e na auditoria.">
+      <div className="prod-form">
+        <label>Nome<input value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})} disabled={!admin||busy}/></label>
+        <label>Segmento<input value={draft.segment} onChange={e=>setDraft({...draft,segment:e.target.value})} disabled={!admin||busy}/></label>
+        <label>Porte<input value={draft.size} onChange={e=>setDraft({...draft,size:e.target.value})} disabled={!admin||busy}/></label>
+        {admin&&<button className="primary" disabled={busy} onClick={save}>Salvar organização</button>}
+      </div>
+      <p>Identificador do ambiente: <code>{company.id}</code>. Não é possível trocar de empresa ou cadastrar outra organização por esta tela.</p>
     </Panel>}
-    {tab==="usuarios"&&<Panel title="Usuários e perfis" sub="Perfis separados para reduzir exposição indevida.">
-      <div className="prod-form"><input value={userName} onChange={e=>setUserName(e.target.value)} placeholder="Nome do usuário"/><select value={userRole} onChange={e=>setUserRole(e.target.value)}>{NEXUS_ROLES.map(r=><option key={r[0]}>{r[0]}</option>)}</select><button className="primary" onClick={addUser}>+ Criar acesso</button></div>
-      <div className="role-grid">{NEXUS_ROLES.map(r=><div key={r[0]}><b>{r[0]}</b><span>{r[1]}</span></div>)}</div>
-      <div className="prod-list">{users.map(u=><div key={u.id}><div><b>{u.name}</b><span>{u.role} · {u.status}</span></div></div>)}</div>
+    {tab==="usuarios"&&<Panel title="Equipe e perfis" sub="Contas reais da organização. Novos acessos exigem provisionamento autorizado; não são gerados convites fictícios.">
+      {members.length?<div className="prod-list">{members.map(member=><div key={member.id}><div><b>{member.name}</b><span>{member.email} · {member.role}</span></div><span className="nexora-company-state">{member.active?"Ativo":"Inativo"}</span></div>)}</div>:!busy&&!error?<p>Nenhuma conta disponível para o seu perfil.</p>:null}
     </Panel>}
-    {tab==="auditoria"&&<Panel title="Trilha de auditoria" sub="Últimos eventos registrados pelo NEXUS.">
-      <div className="audit-list">{audit.length?audit.map(x=><div key={x.id}><b>{x.date}</b><span>{x.text}</span></div>):<div className="empty-line">Nenhum evento registrado.</div>}</div>
+    {tab==="auditoria"&&<Panel title="Auditoria da organização" sub="Eventos registrados pela API, filtrados pela organização autenticada.">
+      {events.length?<div className="audit-list">{events.map(event=><div key={event.id}><b>{event.created_at}</b><span>{event.action} · {event.entity||"Sistema"}</span></div>)}</div>:!busy&&!error?<p>Nenhum evento disponível.</p>:null}
     </Panel>}
-    {tab==="arquitetura"&&<Panel title="Arquitetura comercial" sub="Checklist de preparação antes de colocar uma empresa real em produção.">
-      <div className="readiness-grid">{[
-        ["Multiempresa","Separação lógica por empresa",true],
-        ["Perfis","Roles de acesso definidos",true],
-        ["Auditoria","Histórico de eventos",true],
-        ["Documentos","Versionamento e revisão",true],
-        ["Jurídico","Fluxo segregado",true],
-        ["Banco de dados","Backend persistente e isolado",false],
-        ["Autenticação","Login seguro e recuperação",false],
-        ["Armazenamento","Arquivos privados e backup",false],
-        ["Monitoramento","Alertas e observabilidade",false]
-      ].map(x=><div key={x[0]} className={x[2]?"done":"pending"}><span>{x[2]?"✓":"○"}</span><div><b>{x[0]}</b><small>{x[1]}</small></div></div>)}</div>
-      <div className="prod-warning"><b>IMPORTANTE PARA CLIENTE REAL</b><p>A interface local está pronta para homologação, mas autenticação, banco de dados, armazenamento privado e isolamento multi-tenant ainda precisam ser implementados no backend antes de receber dados reais de clientes.</p></div>
+    {tab==="arquitetura"&&<Panel title="Segurança e implantação" sub="Controles existentes e dependências da homologação V51.">
+      <p>O acesso às organizações é limitado ao contexto autenticado. O backup externo de produção, a restauração isolada e o processo completo de provisionamento SaaS permanecem pendentes de homologação.</p>
+      <p>Asaas e Resend permanecem desativados. Não é possível criar clientes ou cobrar assinaturas por esta tela.</p>
     </Panel>}
-  </div>
+  </div>;
 }
 
 const NEXUS_DOCUMENT_TEMPLATES = {
@@ -1305,7 +1331,7 @@ function attach(files,owner,ownerId) {
         {page==="evidencias" && <Evidence s={s} attach={attach} finish={finish}/>}
         {page==="juridico" && <AutoLegal s={s} confirm={confirmLegal} finish={finish}/>}
         {page==="matriz-filosofica" && <PhilosophyMatrix s={s} openDocument={d=>setDetail({type:"document",item:d})} />}
-        {page==="documentos" && <DocumentCenter s={s} generate={generateDocuments} openDocument={d=>setDetail({type:"document",item:d})} />}{page==="standards" && <><ComplianceIntelligencePanel workspace={s} authenticated={!!apiUser} notify={notify}/><RegulatoryReviewPanel s={s} setS={setS} notify={notify} questions={questions} reviewer={apiUser?.name||apiUser?.email||""}/><StandardsCenter s={s} analysis={frameworkAnalysis()} notify={notify}/></>}{page==="producao" && <ProductionCenter s={s} setS={setS} notify={notify}/>} 
+        {page==="documentos" && <DocumentCenter s={s} generate={generateDocuments} openDocument={d=>setDetail({type:"document",item:d})} />}{page==="standards" && <><ComplianceIntelligencePanel workspace={s} authenticated={!!apiUser} notify={notify}/><RegulatoryReviewPanel s={s} setS={setS} notify={notify} questions={questions} reviewer={apiUser?.name||apiUser?.email||""}/><StandardsCenter s={s} analysis={frameworkAnalysis()} notify={notify}/></>}{page==="producao" && <ProductionCenter s={s} notify={notify} user={apiUser}/>} 
         {page==="relatorio" && <Report s={s} maturity={maturity} progress={progress} print={printReport} setS={setS} framework={frameworkAnalysis()}/>}
         {page==="denuncias" && <Denunciations apiUser={apiUser}/>}
       </div>
