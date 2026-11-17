@@ -11,7 +11,7 @@ if(!source||!destination||!path.isAbsolute(source)||!path.isAbsolute(destination
  fail('Usage: node scripts/v51-verify-sqlite-backup.mjs /absolute/source.sqlite /absolute/backup.sqlite');
 }else{
  const src=path.resolve(source),dst=path.resolve(destination);
- let db,copy;
+ let db,copy,created=false;
  try{
   if(src===dst)throw Error('SOURCE_EQUALS_DESTINATION');
   if(!fs.statSync(src).isFile())throw Error('SOURCE_NOT_FILE');
@@ -22,6 +22,7 @@ if(!source||!destination||!path.isAbsolute(source)||!path.isAbsolute(destination
   db=new Database(src,{readonly:true,fileMustExist:true});
   // better-sqlite3 online backup API provides a consistent SQLite snapshot.
   await db.backup(dst);
+  created=true;
   fs.chmodSync(dst,0o600);
   copy=new Database(dst,{readonly:true,fileMustExist:true});
   const result=copy.pragma('integrity_check',{simple:true});
@@ -36,6 +37,6 @@ if(!source||!destination||!path.isAbsolute(source)||!path.isAbsolute(destination
   fail(error.message);
   // Never leave a failed, potentially misleading snapshot at the target path.
   if(copy){copy.close();copy=null;}
-  if(fs.existsSync(dst))try{fs.unlinkSync(dst);}catch{}
+  if(created&&fs.existsSync(dst))try{fs.unlinkSync(dst);}catch{}
  }finally{if(copy)copy.close();if(db)db.close();}
 }
