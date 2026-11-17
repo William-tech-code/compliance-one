@@ -12,7 +12,8 @@ test('operator backup gate verifies a consistent snapshot and refuses overwrite'
  const source=path.join(dir,'source.sqlite'),target=path.join(secure,'snapshot.sqlite');
  try{
   const db=new Database(source);
-  db.exec('CREATE TABLE items(id INTEGER PRIMARY KEY, value TEXT); INSERT INTO items(value) VALUES ("original")');
+  db.exec('CREATE TABLE items(id INTEGER PRIMARY KEY, value TEXT)');
+  db.prepare('INSERT INTO items(value) VALUES (?)').run('original');
   db.close();
   const run=()=>spawnSync(process.execPath,['scripts/v51-verify-sqlite-backup.mjs',source,target],{encoding:'utf8'});
   const first=run();
