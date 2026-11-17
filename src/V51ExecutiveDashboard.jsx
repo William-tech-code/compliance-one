@@ -8,10 +8,15 @@ const percent=(n)=>Number.isFinite(n)?n.toFixed(1).replace(/\.0$/,'')+'%':'—';
 export default function V51ExecutiveDashboard(){
   const [cycleId,setCycleId]=useState('');
   const [cycles,setCycles]=useState([]);
+  const [overview,setOverview]=useState(null);
   const [cyclesLoading,setCyclesLoading]=useState(true);
   const [cyclesError,setCyclesError]=useState('');
   useEffect(()=>{
     let active=true;
+    apiGet('/v51/assessment/executive/overview').then(data=>{
+      if(active)setOverview(data);
+    }).catch(()=>{ /* Overview is optional; cycle lookup remains available. */ });
+    
     apiGet('/v51/assessment/cycles').then(data=>{
       if(!active)return;
       const items=Array.isArray(data?.cycles)?data.cycles:[];
@@ -63,6 +68,19 @@ export default function V51ExecutiveDashboard(){
     </form>
     {error&&<p role="alert" className="v51-error">{error}</p>}
     {!report&&!error&&<p className="v51-empty">Selecione um ciclo existente para visualizar os indicadores. Se ainda não houver ciclos, crie uma avaliação V51. Nenhum dado fictício é exibido.</p>}
+    {overview&&<div className="v51-overview">
+      <h3>Alertas executivos · Ciclo ativo</h3>
+      {overview.alerts.length===0?<p>Nenhuma pendência identificada nos indicadores disponíveis.</p>:
+        <div className="v51-alert-grid">{overview.alerts.map(a=><article key={a.code} className={a.severity==='high'?'v51-alert-high':''}>
+          <strong>{a.count}</strong><span>{a.message}</span></article>)}</div>}
+      <h3>Evolução entre avaliações encerradas</h3>
+      {overview.history.length<2?<p>São necessários dois ciclos encerrados para comparar a cobertura.</p>:
+        <div className="v51-history">{overview.history.map(h=><div key={h.cycleId} className="v51-history-row">
+          <span>{h.title}</span><div className="v51-bar-track"><i style={{width:(h.coveragePercent||0)+'%'}}/></div>
+          <b>{percent(h.coveragePercent)}</b></div>)}</div>}
+      {overview.trend.coverageChangePoints!==null&&<p>Variação de cobertura entre os dois últimos ciclos encerrados: {overview.trend.coverageChangePoints>0?'+':''}{overview.trend.coverageChangePoints} pontos percentuais.</p>}
+      <small>Comparação baseada nos controles registrados em cada ciclo; o escopo pode variar. Documentos são revalidados no momento da consulta, não na data histórica.</small>
+    </div>}
     {report&&<>
       <div className="v51-report-title"><strong>{report.cycle?.title}</strong>
         <span>{report.cycle?.status==='closed'?'Ciclo encerrado':'Ciclo em andamento'}</span></div>
