@@ -17,6 +17,7 @@ import {secureTokenMatches,validateAsaasEvent,sendResendEmail,hashResetToken,gen
 import {generateTotpSecret,encryptTotpSecret,decryptTotpSecret,verifyTotp} from './v50Mfa.js';
 import {canReadUserDirectory,canCreateUser,validateNewUser} from "./v51UserAccess.js";
 import {resolveMfaEncryptionKey} from "./v51MfaKey.js";
+import {configureV51Organization} from "./v51OrganizationApi.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -762,6 +763,8 @@ app.post("/api/login", async (req, res) => {
 | USUÁRIO ATUAL
 |--------------------------------------------------------------------------
 */
+
+configureV51Organization({app,db,authenticate,audit});
 
 app.get("/api/me", authenticate, (req, res) => {
   const user = db
